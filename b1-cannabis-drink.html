@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>“술보다 대마가 낫다~” 건강 음료라고?</title>
+    <title>술보다 대마 음료가 건강에 좋을까요?</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -130,7 +130,7 @@
 
             useEffect(() => {
                 isMounted.current = true;
-                setButtonLang('Translation'); // 버튼 텍스트 'Translation'으로 설정
+                setButtonLang('English');
                 return () => { isMounted.current = false; };
             }, []);
 
@@ -158,8 +158,8 @@
             }, [show, translation, textToTranslate]);
 
             return (
-                <div className="no-print flex flex-col items-start"> {/* flex-col로 변경하여 번역 텍스트가 버튼 아래에 오도록 함 */}
-                    <button onClick={handleTranslate} disabled={isLoading} className="text-xs text-gray-500 hover:text-gray-800 py-1 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:text-gray-300">{isLoading ? 'Translating...' : (show ? 'Hide' : buttonLang)}</button> {/* font-semibold 제거 및 텍스트 변경 */}
+                <div className="mt-1 no-print">
+                    <button onClick={handleTranslate} disabled={isLoading} className="text-xs text-gray-500 hover:text-gray-800 font-semibold py-1 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:text-gray-300">{isLoading ? '번역 중...' : (show ? '번역 숨기기' : `번역 (${buttonLang})`)}</button>
                     {show && translation && <p className="text-gray-600 text-base mt-2 mb-2 whitespace-pre-wrap">{translation}</p>}
                     {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
                 </div>
@@ -228,14 +228,14 @@
 
             return (
                 <div ref={ref} className={`p-4 rounded-lg border-b ${isHighlighted ? 'vocab-highlight' : 'bg-white'}`}>
-                    <p className="font-bold text-lg text-green-700">{item.term}</p>
+                    <p className="font-bold text-[18px] text-green-700">{item.term}</p>
                     <div className="pl-4 mt-2 border-l-2">
-                        <p className="text-gray-700">{item.mainDef}</p>
+                        <p className="text-gray-700 text-[17px]">{item.mainDef}</p>
                         {item.subDefs && item.subDefs.length > 0 && (
                             <div className="mt-3 pt-3 border-t">{item.subDefs.map((sub, index) => (
-                                <div key={index} className="text-sm mt-2">
-                                    <p className="font-semibold">{sub.subTerm}</p>
-                                    <p className="text-gray-600 pl-2">{sub.subDef}</p>
+                                <div key={index} className="mt-2">
+                                    <p className="font-semibold text-[17px]">{sub.subTerm}</p>
+                                    <p className="text-gray-600 pl-2 text-[16px]">{sub.subDef}</p>
                                 </div>
                             ))}</div>
                         )}
@@ -243,10 +243,10 @@
                     {item.examples && item.examples.length > 0 && (
                         <div className="mt-3 no-print">
                             <button onClick={() => setShowExamples(!showExamples)} className="text-xs bg-green-200 hover:bg-green-300 text-gray-600 py-1 px-2 rounded-md">
-                                {showExamples ? 'Close Examples' : 'Sentence Examples'}
+                                {showExamples ? '예문 닫기' : 'Sentence Examples'}
                             </button>
                             {showExamples && (
-                                <div className="mt-3 p-3 bg-green-50 rounded-lg space-y-3 text-sm">
+                                <div className="mt-3 p-3 bg-green-50 rounded-lg space-y-3 text-[15px]">
                                     {item.examples.map((ex, index) => (
                                         <div key={index}>
                                             <p className="font-medium text-gray-800">{ex.kor}</p>
@@ -267,20 +267,21 @@
             const [player, setPlayer] = useState(null);
             const [activeScriptLine, setActiveScriptLine] = useState(null);
             const [isSyncEnabled, setIsSyncEnabled] = useState(true);
-            const [repeatingLine, setRepeatingLine] = useState(null);
             const [hoverPopupData, setHoverPopupData] = useState(null);
             const [highlightedVocab, setHighlightedVocab] = useState(null);
             const [translationsVisible, setTranslationsVisible] = useState({});
             const [playerHeight, setPlayerHeight] = useState(0);
             const [isVocabSidebarVisible, setIsVocabSidebarVisible] = useState(true);
             const [isPortrait, setIsPortrait] = useState(window.matchMedia("(orientation: portrait)").matches);
+            const [playbackRate, setPlaybackRate] = useState(1); // 재생 속도 상태 추가
 
             const scriptLineRefs = useRef({});
             const vocabRefs = useRef({});
             const intervalRef = useRef();
             const playerContainerRef = useRef(null);
-            const scriptWrapperRef = useRef(null); // 스크롤 컨테이너를 위한 ref 추가
             const hoverTimeoutRef = useRef(null);
+            const scriptWrapperRef = useRef(null); // 스크롤 컨테이너를 위한 ref 추가
+            const clipTimeoutRef = useRef(null); // 이 문장만 재생 타임아웃을 위한 ref
 
             const activeScriptLineRef = useRef(activeScriptLine);
             activeScriptLineRef.current = activeScriptLine;
@@ -293,7 +294,10 @@
                     .sort((a, b) => a.start - b.start);
             }, [scriptContent]);
 
-            const onPlayerReady = useCallback((event) => setPlayer(event.target), []);
+            const onPlayerReady = useCallback((event) => {
+                setPlayer(event.target);
+                event.target.setPlaybackRate(playbackRate); // 플레이어 준비 시 현재 속도 설정
+            }, [playbackRate]);
 
             const setupPlayer = useCallback(() => {
                 if (window.YT && window.YT.Player) {
@@ -320,7 +324,10 @@
                 } else if (!window.YT) {
                     window.onYouTubeIframeAPIReady = setupPlayer;
                 }
-                return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+                return () => { 
+                    if (intervalRef.current) clearInterval(intervalRef.current); 
+                    if (clipTimeoutRef.current) clearTimeout(clipTimeoutRef.current);
+                };
             }, [setupPlayer, player]);
 
             useEffect(() => {
@@ -334,8 +341,15 @@
                 return () => ro?.disconnect();
             }, []);
 
+            // playbackRate 상태가 변경되거나 player가 준비되면 속도 설정
             useEffect(() => {
-                if (player && isSyncEnabled && !repeatingLine) {
+                if (player && player.setPlaybackRate) {
+                    player.setPlaybackRate(playbackRate);
+                }
+            }, [player, playbackRate]);
+
+            useEffect(() => {
+                if (player && isSyncEnabled) {
                     intervalRef.current = setInterval(() => {
                         if (player.getCurrentTime) {
                             const currentTime = player.getCurrentTime();
@@ -350,43 +364,61 @@
                     clearInterval(intervalRef.current);
                 }
                 return () => clearInterval(intervalRef.current);
-            }, [player, isSyncEnabled, repeatingLine, timeIndex]);
+            }, [player, isSyncEnabled, timeIndex]);
 
             useEffect(() => {
                 if (activeScriptLine && isSyncEnabled) {
                     const lineElement = scriptLineRefs.current[activeScriptLine];
-                    
-                    // --- 수정된 스크롤 로직 ---
-                    if (lineElement && scriptWrapperRef.current) {
-                        // scrollIntoView를 사용하여 요소를 부드럽게 중앙으로 스크롤합니다.
-                        // 'block: 'center'' 옵션이 요소를 스크롤 컨테이너의 중앙에 위치시킵니다.
-                        // 스크롤 컨테이너가 맨 위나 맨 아래에 도달하면,
-                        // 브라우저가 자동으로 스크롤을 멈춥니다.
-                        lineElement.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center'
+                    const scriptWrapper = scriptWrapperRef.current; // 스크롤 컨테이너 ref 가져오기
+
+                    if (lineElement && scriptWrapper) {
+                        // 기존 window.scrollBy 로직을 대체합니다.
+                        
+                        // 스크롤할 위치 계산
+                        const wrapperHeight = scriptWrapper.clientHeight; // 컨테이너의 보이는 높이
+                        const lineTop = lineElement.offsetTop; // 스크롤 컨테이너 콘텐츠 기준 라인의 상단 위치
+                        const lineHeight = lineElement.offsetHeight; // 라인의 높이
+
+                        // 라인 요소의 중앙이 컨테이너의 중앙에 오도록 목표 스크롤 위치 계산
+                        const targetScrollTop = lineTop - (wrapperHeight / 2) + (lineHeight / 2);
+
+                        // window가 아닌 scriptWrapper를 스크롤합니다.
+                        scriptWrapper.scrollTo({
+                            top: targetScrollTop,
+                            behavior: 'smooth'
                         });
                     }
-                    // --- 이전 로직 삭제 ---
                 }
-            }, [activeScriptLine, isSyncEnabled]); // 의존성 배열은 정확합니다.
+            }, [activeScriptLine, isSyncEnabled]);
 
-            useEffect(() => {
-                if (repeatingLine && player && player.seekTo) {
-                    const [start, end] = repeatingLine.time;
+            const handlePlayClip = (line) => {
+                if (!player || !line.time) return;
+
+                // 이미 실행 중인 타임아웃이 있다면 취소
+                if (clipTimeoutRef.current) {
+                    clearTimeout(clipTimeoutRef.current);
+                }
+
+                const [start, end] = line.time;
+                const duration = (end - start) * 1000;
+
+                if (player.seekTo && player.playVideo && player.pauseVideo && duration > 0) {
                     player.seekTo(start);
-                    if(player.playVideo) player.playVideo();
-                    intervalRef.current = setInterval(() => {
-                        if (player.getCurrentTime && player.getCurrentTime() >= end) {
-                            player.seekTo(start);
-                        }
-                    }, 200);
-                }
-                return () => clearInterval(intervalRef.current);
-            }, [repeatingLine, player]);
+                    player.playVideo();
 
-            const handleRepeatClick = (line) => {
-                setRepeatingLine(prev => (prev && prev.id === line.id) ? null : line);
+                    // (end - start) 시간 후에 비디오를 정지
+                    clipTimeoutRef.current = setTimeout(() => {
+                        player.pauseVideo();
+                        clipTimeoutRef.current = null;
+                    }, duration);
+                }
+            };
+
+            // 재생 속도 변경 핸들러
+            const handleRateChange = (e) => {
+                const newRate = parseFloat(e.target.value);
+                setPlaybackRate(newRate);
+                // useEffect [player, playbackRate]가 플레이어 속도를 업데이트합니다.
             };
 
             const handleWordHover = useCallback((e, baseForm) => {
@@ -431,22 +463,37 @@
             return (
                 <div className="video-materials-content md:flex md:flex-row md:gap-6">
                     {hoverPopupData && <HoverTooltip data={hoverPopupData.data} position={hoverPopupData.position} />}
-                    <div ref={playerContainerRef} className="video-wrapper md:w-2/5 md:sticky top-0 z-40 bg-gray-50 py-4 no-print">
+                    <div ref={playerContainerRef} className="video-wrapper md:w-[41%] md:sticky top-0 z-40 bg-gray-50 py-4 no-print">
                         <div className={`w-full rounded-xl shadow-lg border-4 border-white overflow-hidden transition-all duration-300 ease-in-out aspect-[9/16]`}>
                             <div id="youtube-player" className="w-full h-full"></div>
                         </div>
-                        <div className="mt-4 flex justify-start">
-                            <label htmlFor="sync-toggle" className="flex-1 flex items-center justify-between cursor-pointer bg-white py-1.5 px-3 rounded-lg shadow-md border max-w-xs">
+                        <div className="mt-4 flex flex-row justify-between items-center gap-4">
+                            <label htmlFor="sync-toggle" className="flex items-center justify-between cursor-pointer bg-white py-1.5 px-3 rounded-lg shadow-md border w-auto flex-none">
                                 <span className="text-xs font-medium text-gray-900 whitespace-nowrap">Auto-scroll</span>
-                                <div className="relative">
+                                <div className="relative ml-3">
                                     <input type="checkbox" id="sync-toggle" className="sr-only" checked={isSyncEnabled} onChange={() => setIsSyncEnabled(!isSyncEnabled)} />
                                     <div className={`block w-10 rounded-full transition-colors ${isSyncEnabled ? 'bg-green-500' : 'bg-gray-200'}`} style={{ height: '0.35cm' }}></div>
                                     <div className={`dot absolute left-1 top-[2.6px] bg-white w-2 h-2 rounded-full transition-transform ${isSyncEnabled ? 'transform translate-x-6' : ''}`}></div>
                                 </div>
                             </label>
+                            
+                            <div className="flex items-center gap-2 bg-white py-1.5 px-3 rounded-lg shadow-md border w-auto flex-1">
+                                <span className="text-xs font-medium text-gray-900">Speed</span>
+                                <input
+                                    type="range"
+                                    min="0.70"
+                                    max="1.20"
+                                    step="0.01"
+                                    value={playbackRate}
+                                    onChange={handleRateChange}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mx-2"
+                                    aria-label="Playback speed"
+                                />
+                                <span className="text-xs font-semibold text-green-700 w-12 text-right">{playbackRate.toFixed(2)}x</span>
+                            </div>
                         </div>
                     </div>
-                    <div ref={scriptWrapperRef} className="script-wrapper md:w-3/5 md:max-h-[calc(100vh-4rem)] md:overflow-y-auto"> {/* 여기에 ref 추가 */}
+                    <div className="script-wrapper md:w-[59%] md:max-h-[calc(100vh-4rem)] md:overflow-y-auto" ref={scriptWrapperRef}>
                         <main className="flex-grow">
                             <div className="space-y-6">
                                 {scriptContent.map(line => {
@@ -460,16 +507,22 @@
                                                 <p className="whitespace-pre-wrap text-lg text-gray-800">
                                                     <HighlightedText text={line.kor} highlightData={highlightData} onWordHover={handleWordHover} onWordLeave={handleWordLeave} lineId={line.id} activeWordId={activeWordId} />
                                                 </p>
-                                                {/* Translation text is now handled by TranslateButton */}
-                                                <div className="mt-2 no-print">
-                                                    <TranslateButton textToTranslate={line.kor} />
+                                                {translationsVisible[line.id] && hasTranslation && (
+                                                    <p className="text-gray-600 text-base mt-2">{line.eng}</p>
+                                                )}
+                                                <div className="flex items-center gap-2 mt-2 no-print">
+                                                    {hasTranslation && (
+                                                        <button onClick={() => toggleTranslation(line.id)} className="text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition">
+                                                            {translationsVisible[line.id] ? 'Hide translation' : 'Translation'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
                                     }
 
-                                    const isYuna = line.speaker === '유나';
-                                    const bubbleWrapperClasses = `flex flex-col max-w-[100%] sm:max-w-[100%] ${isYuna ? 'items-start' : 'items-end self-end'}`;
+                                    const isYuna = line.speaker === '스브스뉴스'; // 스브스뉴스도 왼쪽
+                                    const bubbleWrapperClasses = `flex flex-col max-w-[100%] sm:max-w-[100%] ${isYuna ? 'items-start ml-3' : 'items-end self-end mr-3'}`;
                                     const bubbleBaseClasses = 'relative px-5 py-3 rounded-2xl shadow-md transition-colors duration-300';
                                     const yunaBubbleColor = 'bg-green-100';
                                     const woodyBubbleColor = 'bg-white';
@@ -489,17 +542,20 @@
                                                     </p>
                                                 </div>
                                                 <div className={`w-full flex flex-col ${isYuna ? 'items-start' : 'items-end'}`}>
-                                                    {/* Translation text is now handled by TranslateButton */}
-                                                    <div className="flex items-start gap-2 mt-2 px-2 no-print"> {/* items-start로 변경하여 버튼 상단 정렬 */}
+                                                    {translationsVisible[line.id] && hasTranslation && (
+                                                        <p className="text-gray-500 text-base mt-2 px-2">{line.eng}</p>
+                                                    )}
+                                                    <div className="flex items-center gap-2 mt-2 px-2 no-print">
                                                         {line.time && (
-                                                            <button onClick={() => handleRepeatClick(line)} className={`text-xs px-2 py-1 rounded-md transition ${repeatingLine?.id === line.id ? 'bg-red-200 hover:bg-red-300 text-red-800' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}>
-                                                                {repeatingLine?.id === line.id ? 'Stop loop' : 'Loop playback'}
+                                                            <button onClick={() => handlePlayClip(line)} className="text-xs px-2 py-1 rounded-md transition bg-gray-100 hover:bg-gray-200 text-gray-600">
+                                                                Play Clip
                                                             </button>
                                                         )}
-                                                        <TranslateButton textToTranslate={line.kor} /> {/* Translation 버튼을 이곳으로 이동 */}
-                                                    </div>
-                                                    <div className="px-2 w-full">
-                                                        {/* TranslateButton이 위로 이동했습니다. */}
+                                                        {hasTranslation && (
+                                                            <button onClick={() => toggleTranslation(line.id)} className="text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition">
+                                                                {translationsVisible[line.id] ? 'Hide translation' : 'Translation'}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -509,8 +565,8 @@
                             </div>
                         </main>
                         {/* REMOVED: The <aside className="vocab-sidebar ..."> block 
-                             which contained the vocabulary list and toggle buttons 
-                             has been completely removed from this component.
+                            which contained the vocabulary list and toggle buttons 
+                            has been completely removed from this component.
                         */}
                     </div>
                 </div>
@@ -698,14 +754,6 @@
                                     {q.vocab.map((v, i) => (
                                         <div key={i} className="pl-4 border-l-2 border-gray-200 py-2">
                                             <p className="font-semibold text-green-700 text-lg">{v.term}: <span className="font-medium text-gray-700 text-base">{v.meaning_eng}</span></p>
-                                            <div className="mt-2">
-                                                <h4 className="flex items-center gap-2 text-sm font-bold text-gray-600"><span>💬</span> 대화 속에서 살펴보기 (See it in Context)</h4>
-                                                <div className="mt-1 p-3 bg-gray-100 rounded-lg">
-                                                    <p className="text-gray-800">"{v.context}"</p>
-                                                    {translationsVisible[`q-${q.num}-context-${i}`] && (<p className="text-gray-600 italic text-sm mt-1">{v.context_eng}</p>)}
-                                                    <button onClick={() => toggleTranslation(`q-${q.num}-context-${i}`)} className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded-full transition duration-200 mt-2">번역 (Translation)</button>
-                                                </div>
-                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -780,363 +828,79 @@
             const { scriptContent, vocabAndGrammarList, sentences, discussionQuestions } = useMemo(() => {
                 // Data structures remain multi-line for readability
                 const scriptContent = [
-                    { id: 's1', speaker: '스브스뉴스', kor: '요즘 미국 사람들은 술 대신 마시는 게 있었으니, 바로 "대마 음료"라고 합니다.', time: [0, 4], eng: "" },
-                    { id: 's2', speaker: '스브스뉴스', kor: '현재 "술을 마신다"라고 답한 미국 성인이 역대 최저치를 기록할 정도.', time: [4, 9], eng: "" },
-                    { id: 's3', speaker: '스브스뉴스', kor: '대마 음료란 대마초의 성분 중 THC를 첨가하여 만든 음료를 의미하는데요.', time: [9, 14], eng: "" },
-                    { id: 's4', speaker: '스브스뉴스', kor: '이런 대마 음료 시장이 미국에서 엄청나게 커지고 있고,', time: [14, 18], eng: "" },
-                    { id: 's5', speaker: '스브스뉴스', kor: '여러 브랜드의 대마 음료를 마셔 볼 수 있는 축제가 열리기도 하고,', time: [18, 22], eng: "" },
-                    { id: 's6', speaker: '스브스뉴스', kor: '대마 음료를 레스토랑과 온라인에서도 쉽게 구매할 수 있다는데.', time: [22, 25], eng: "" },
-                    { id: 's7', speaker: '스브스뉴스', kor: '가장 큰 이유는 술을 대하는 MZ세대의 태도가 변했기 때문이라는데요.', time: [25, 29], eng: "" },
-                    { id: 's8', speaker: '스브스뉴스', kor: '실제로 미국의 18세에서 34세 음주율 변화가 가장 크기도 한데,', time: [29, 34], eng: "" },
-                    { id: 's9', speaker: '스브스뉴스', kor: '미국뿐만 아니라 전 세계적으로 건강을 중요하게 생각하는 게 트렌드가 되니,', time: [34, 39], eng: "" },
-                    { id: 's10', speaker: '스브스뉴스', kor: '술을 멀리하는 마음까지 이어지게 된 것.', time: [39, 41], eng: "" },
-                    { id: 's11', speaker: '스브스뉴스', kor: '"술이 건강에 안 좋으니까 술 대신 대마 음료를 마시자."', time: [41, 45], eng: "" },
-                    { id: 's12', speaker: '스브스뉴스', kor: '이게 대체 어떻게 나온 생각이죠?', time: [45, 48], eng: "" },
-                    { id: 's13', speaker: '화자 2', kor: '술은 너무 역사가 깊잖아요.', time: [48, 49], eng: "" },
-                    { id: 's14', speaker: '화자 2', kor: '건강에 해롭다는 게 이제 의학이 발달을 하면서', time: [49, 53], eng: "" },
-                    { id: 's15', speaker: '화자 2', kor: '간에 해롭고 숙취가 있고 이런 걸 알게 된 거고,', time: [53, 57], eng: "" },
-                    { id: 's16', speaker: '화자 2', kor: '대마는 아직은 우울증 약으로도 치료를 하는 거고,', time: [57, 61], eng: "" },
-                    { id: 's17', speaker: '화자 2', kor: '정신 안정에 도움이 되고 이런 얘기도 많단 말이에요.', time: [61, 65], eng: "" } // 1:01 is 61 seconds. Added 4 seconds for line duration.
+                    { id: 's1', speaker: '스브스뉴스', kor: '요즘 미국 사람들은 술 대신 마시는 게 있었으니,', time: [0.000, 3.100], eng: "These days, Americans have something they drink instead of alcohol," },
+                    { id: 's2', speaker: '스브스뉴스', kor: '바로 "대마 음료"라고 합니다.', time: [3.100, 4.700], eng: 'and it\'s called "cannabis-infused drinks".' },
+                    { id: 's3', speaker: '스브스뉴스', kor: '“현재 술을 마신다"라고 답한 미국 성인이 역대 최저치를 기록할 정도.', time: [5.550, 10.277], eng: 'It\'s to the point where American adults who answered "I currently drink" has hit an all-time low.' },
+                    { id: 's4', speaker: '스브스뉴스', kor: '대마 음료란 대마초의 성분 중 THC를 첨가하여 만든 음료를 의미하는데요.', time: [10.300, 15.415], eng: 'A "cannabis drink" means a beverage made by adding THC, one of the components of marijuana.' },
+                    { id: 's5', speaker: '스브스뉴스', kor: '이런 대마 음료 시장이 미국에서 엄청나게 커지고 있고,', time: [15.415, 18.785], eng: 'This cannabis drink market is growing enormously in the US, and,' },
+                    { id: 's6', speaker: '스브스뉴스', kor: '여러 브랜드의 대마 음료를 마셔 볼 수 있는 축제가 열리기도 하고,', time: [18.819, 22.523], eng: 'festivals are held where you can try various brands of cannabis drinks, and' },
+                    { id: 's7', speaker: '스브스뉴스', kor: '대마 음료를 레스토랑과 온라인에서도 쉽게 구매할 수 있다는데.', time: [22.556, 26.260], eng: 'they say you can easily buy cannabis drinks at restaurants and online.' },
+                    { id: 's8', speaker: '스브스뉴스', kor: '가장 큰 이유는 술을 대하는 MZ세대의 태도가 변했기 때문이라는데요.', time: [26.293, 30.898], eng: 'The biggest reason, they say, is because the MZ generation\'s attitude towards alcohol has changed.' },
+                    { id: 's9', speaker: '스브스뉴스', kor: '실제로 미국의 18세에서 34세의 음주율 변화가 가장 크기도 한데,', time: [30.931, 35.200], eng: 'In fact, the change in the drinking rate for 18 to 34-year-olds in the US is the largest,' },
+                    { id: 's10', speaker: '스브스뉴스', kor: '미국뿐만 아니라 전 세계적으로 건강을 중요하게 생각하는 게 트렌드가 되니,', time: [35.235, 39.673], eng: 'and as prioritizing health has become a trend not just in the US but globally,' },
+                    { id: 's11', speaker: '스브스뉴스', kor: '술을 멀리하는 마음까지 이어지게 된 것!', time: [39.700, 42.476], eng: 'it has led to a mindset of avoiding alcohol!' },
+                    { id: 's12', speaker: '스브스뉴스', kor: '"술이 건강에 안 좋으니까 술 대신 대마 음료를 마시자...?"', time: [42.509, 45.946], eng: '"Alcohol is unhealthy, so let\'s drink cannabis drinks instead...?"' },
+                    { id: 's13', speaker: '스브스뉴스', kor: '이게 대체 어떻게 나온 생각이죠?', time: [45.979, 48.115], eng: 'Where on earth did this idea come from?' },
+                    { id: 's14', speaker: '김민지(SWRLOperation 매니저)', kor: '술은 너무 역사가 깊잖아요.', time: [48.315, 50.517], eng: 'You know, alcohol has such a deep history.' },
+                    { id: 's15', speaker: '김민지(SWRLOperation 매니저)', kor: '건강에 해롭다는 게 이제 의학이 발달을 하면서', time: [50.550, 53.787], eng: 'The fact that it\'s harmful to health, as medical science developed,' },
+                    { id: 's16', speaker: '김민지(SWRLOperation 매니저)', kor: '간에 해롭고 숙취가 있고 이런 걸 알게 된 거고,', time: [53.820, 57.491], eng: 'we came to know it\'s harmful to the liver and causes hangovers, and,' },
+                    { id: 's17', speaker: '김민지(SWRLOperation 매니저)', kor: '대마는 아직은 우울증 약으로도 치료를 하는 거고,', time: [57.524, 61.428], eng: 'cannabis is still used as a treatment for depression, and,' },
+                    { id: 's18', speaker: '김민지(SWRLOperation 매니저)', kor: '정신 안정에 도움이 되고,', time: [61.461, 63.096], eng: 'it helps with mental stability, and' },
+                    { id: 's19', speaker: '김민지(SWRLOperation 매니저)', kor: '이런 얘기도 많단 말이에요.', time: [63.130, 65.096], eng: 'there are many stories like that.' }
                 ];
                 const vocabAndGrammarList = [
-    {
-        term: '마시는 게 있었으니',
-        mainDef: 'There was something they drink (introducing new information)',
-        examples: [
-            { kor: "요즘 미국 사람들은 술 대신 마시는 게 있었으니, 바로 '대마 음료'라고 합니다.", eng: "These days, Americans have something they drink instead of alcohol, and it's called 'cannabis beverages'." }
-        ],
-        subDefs: [
-            { subTerm: '마시는 게', subDef: 'Something to drink, the thing that (someone) drinks - nominalizer' },
-            { subTerm: '으니', subDef: 'Since, because (causal conjunction introducing reason or new information)' }
-        ]
-    },
-    {
-        term: '대마 음료',
-        mainDef: 'Cannabis beverage, marijuana drink',
-        examples: [
-            { kor: "바로 '대마 음료'라고 합니다.", eng: "It's called 'cannabis beverages'." }
-        ],
-        subDefs: [
-            { subTerm: '대마', subDef: 'Cannabis, marijuana, hemp' },
-            { subTerm: '음료', subDef: 'Beverage, drink' }
-        ]
-    },
-    {
-        term: '라고 하다',
-        mainDef: 'To call, to be called, to say (quotative particle + verb)',
-        examples: [
-            { kor: "바로 '대마 음료'라고 합니다.", eng: "It's called 'cannabis beverages'." }
-        ],
-        subDefs: []
-    },
-    {
-        term: '"술을 마신다"라고 답한 미국 성인',
-        mainDef: 'American adults who answered "I drink alcohol"',
-        examples: [
-            { kor: "현재 '술을 마신다'라고 답한 미국 성인이 역대 최저치를 기록할 정도.", eng: "Currently, American adults who answer 'I drink alcohol' are at an all-time low." }
-        ],
-        subDefs: [
-            { subTerm: '라고 답하다', subDef: 'To answer/respond that (quotative + verb)' },
-            { subTerm: 'ㄴ', subDef: 'Modifier ending for past/completed action describing noun' },
-            { subTerm: '성인', subDef: 'Adult, grown-up person' }
-        ]
-    },
-    {
-        term: '역대 최저치를 기록할 정도',
-        mainDef: 'To the extent of recording an all-time low',
-        examples: [
-            { kor: "역대 최저치를 기록할 정도.", eng: "To the extent of recording an all-time low." }
-        ],
-        subDefs: [
-            { subTerm: '역대', subDef: 'All-time, throughout history, over the years' },
-            { subTerm: '최저치', subDef: 'Lowest point, minimum level, all-time low' },
-            { subTerm: '기록하다', subDef: 'To record, to register, to mark' },
-            { subTerm: 'ㄹ 정도', subDef: 'To the extent that, so much that (degree/extent)' }
-        ]
-    },
-    {
-        term: '대마초의 성분 중',
-        mainDef: 'Among the components of cannabis',
-        examples: [
-            { kor: "대마 음료란 대마초의 성분 중 THC를 첨가하여 만든 음료를 의미하는데요.", eng: "Cannabis beverages refer to drinks made by adding THC, one of the components of cannabis." }
-        ],
-        subDefs: [
-            { subTerm: '대마초', subDef: 'Cannabis, marijuana plant' },
-            { subTerm: '성분', subDef: 'Component, ingredient, element' },
-            { subTerm: '중', subDef: 'Among, out of, from among' }
-        ]
-    },
-    {
-        term: '첨가하여 만든 음료',
-        mainDef: 'Beverages made by adding (ingredient)',
-        examples: [
-            { kor: "THC를 첨가하여 만든 음료를 의미하는데요.", eng: "It refers to drinks made by adding THC." }
-        ],
-        subDefs: [
-            { subTerm: '첨가하다', subDef: 'To add, to supplement, to put in (ingredient)' },
-            { subTerm: '여', subDef: 'Connective form of -하여 (by doing, through doing)' },
-            { subTerm: 'ㄴ', subDef: 'Modifier ending for past/completed action describing noun' },
-            { subTerm: '음료', subDef: 'Beverage, drink' }
-        ]
-    },
-    {
-        term: '의미하는데요',
-        mainDef: 'It means/refers to (polite explanation)',
-        examples: [
-            { kor: "대마 음료란 대마초의 성분 중 THC를 첨가하여 만든 음료를 의미하는데요.", eng: "Cannabis beverages refer to drinks made by adding THC, one of the components of cannabis." }
-        ],
-        subDefs: [
-            { subTerm: '의미하다', subDef: 'To mean, to signify, to refer to' },
-            { subTerm: '는데요', subDef: 'You see, and (polite background information or explanation)' }
-        ]
-    },
-    {
-        term: '엄청나게 커지고 있고',
-        mainDef: 'Is growing tremendously, and',
-        examples: [
-            { kor: "이런 대마 음료 시장이 미국에서 엄청나게 커지고 있고,", eng: "The cannabis beverage market in America is growing tremendously, and" }
-        ],
-        subDefs: [
-            { subTerm: '엄청나게', subDef: 'Tremendously, hugely, enormously' },
-            { subTerm: '커지다', subDef: 'To grow, to get bigger, to expand' },
-            { subTerm: '고 있다', subDef: 'Is doing, in progress (progressive aspect)' }
-        ]
-    },
-    {
-        term: '마셔 볼 수 있는 축제가 열리기도 하고',
-        mainDef: 'Festivals where you can try drinking (them) are also held, and',
-        examples: [
-            { kor: "여러 브랜드의 대마 음료를 마셔 볼 수 있는 축제가 열리기도 하고,", eng: "Festivals where you can try various brands of cannabis beverages are also held, and" }
-        ],
-        subDefs: [
-            { subTerm: '아/어 볼 수 있다', subDef: 'Can try doing, able to try (experiential + possibility)' },
-            { subTerm: '는', subDef: 'Modifier ending for present/ongoing action describing noun' },
-            { subTerm: '축제가 열리다', subDef: 'A festival is held, festival takes place' },
-            { subTerm: '기도 하다', subDef: 'Also do, even do (adding information)' }
-        ]
-    },
-    {
-        term: '쉽게 구매할 수 있다는데',
-        mainDef: 'I hear you can easily purchase (it)',
-        examples: [
-            { kor: "대마 음료를 레스토랑과 온라인에서도 쉽게 구매할 수 있다는데.", eng: "I hear you can easily purchase cannabis beverages at restaurants and online too." }
-        ],
-        subDefs: [
-            { subTerm: '쉽게', subDef: 'Easily, simply, without difficulty' },
-            { subTerm: '구매하다', subDef: 'To purchase, to buy' },
-            { subTerm: '는데', subDef: 'I hear that, they say (hearsay or providing background)' }
-        ]
-    },
-    {
-        term: '이유',
-        mainDef: 'Reason, cause',
-        examples: [
-            { kor: "가장 큰 이유는 술을 대하는 MZ세대의 태도가 변했기 때문이라는데요.", eng: "The biggest reason is that MZ generation's attitude toward alcohol has changed." }
-        ],
-        subDefs: []
-    },
-    {
-        term: '술을 대하는 MZ세대의 태도가 변했기 때문이라는데요',
-        mainDef: 'It\'s because MZ generation\'s attitude toward alcohol has changed, I hear',
-        examples: [
-            { kor: "가장 큰 이유는 술을 대하는 MZ세대의 태도가 변했기 때문이라는데요.", eng: "The biggest reason is that MZ generation's attitude toward alcohol has changed." }
-        ],
-        subDefs: [
-            { subTerm: '대하는 태도', subDef: 'Attitude toward (something), way of treating/dealing with' },
-            { subTerm: 'MZ세대', subDef: 'MZ generation (Millennials + Gen Z)' },
-            { subTerm: '변하다', subDef: 'To change, to transform, to shift' },
-            { subTerm: '기 때문이라는데요', subDef: 'I hear it\'s because (hearsay + causal reason)' }
-        ]
-    },
-    {
-        term: '실제로',
-        mainDef: 'Actually, in reality, in fact',
-        examples: [
-            { kor: "실제로 미국의 18세에서 34세 음주율 변화가 가장 크기도 한데,", eng: "In fact, the change in drinking rates among 18-34 year olds in America is also the largest," }
-        ],
-        subDefs: []
-    },
-    {
-        term: '음주율 변화가 가장 크기도 한데',
-        mainDef: 'The change in drinking rate is also the largest, and',
-        examples: [
-            { kor: "실제로 미국의 18세에서 34세 음주율 변화가 가장 크기도 한데,", eng: "In fact, the change in drinking rates among 18-34 year olds in America is also the largest," }
-        ],
-        subDefs: [
-            { subTerm: '음주율', subDef: 'Drinking rate, alcohol consumption rate' },
-            { subTerm: '변화', subDef: 'Change, transformation, shift' },
-            { subTerm: '기도 하다', subDef: 'Also is/does (adding related information)' },
-            { subTerm: 'ㄴ데', subDef: 'And, but (softer connective providing background)' }
-        ]
-    },
-    {
-        term: '미국뿐만 아니라 전 세계적으로',
-        mainDef: 'Not only in America but globally/worldwide',
-        examples: [
-            { kor: "미국뿐만 아니라 전 세계적으로 건강을 중요하게 생각하는 게 트렌드가 되니,", eng: "Not only in America but globally, thinking of health as important has become a trend, so" }
-        ],
-        subDefs: [
-            { subTerm: '뿐만 아니라', subDef: 'Not only... but also (expansion particle)' },
-            { subTerm: '전 세계적으로', subDef: 'Globally, worldwide, internationally' }
-        ]
-    },
-    {
-        term: '건강을 중요하게 생각하는 게',
-        mainDef: 'Thinking of health as important (nominalizer)',
-        examples: [
-            { kor: "건강을 중요하게 생각하는 게 트렌드가 되니,", eng: "Thinking of health as important has become a trend, so" }
-        ],
-        subDefs: [
-            { subTerm: '건강', subDef: 'Health, wellness' },
-            { subTerm: '는 게', subDef: 'The thing/act of (doing) - nominalizer for actions' }
-        ]
-    },
-    {
-        term: '트렌드가 되니',
-        mainDef: 'Since it became a trend, as it becomes trendy',
-        examples: [
-            { kor: "건강을 중요하게 생각하는 게 트렌드가 되니,", eng: "Since thinking of health as important has become a trend," }
-        ],
-        subDefs: [
-            { subTerm: '트렌드', subDef: 'Trend, fashion, current style' },
-            { subTerm: '니', subDef: 'Since, so, because (causal reason)' }
-        ]
-    },
-    {
-        term: '술을 멀리하는 마음까지 이어지게 된 것',
-        mainDef: 'It has led even to the mindset of avoiding alcohol',
-        examples: [
-            { kor: "술을 멀리하는 마음까지 이어지게 된 것.", eng: "It has led even to the mindset of avoiding alcohol." }
-        ],
-        subDefs: [
-            { subTerm: '멀리하다', subDef: 'To avoid, to stay away from, to distance oneself' },
-            { subTerm: '는', subDef: 'Modifier ending for present/ongoing action describing noun' },
-            { subTerm: '마음이 이어지다', subDef: 'Mindset/feeling extends to, leads to (mental state)' },
-            { subTerm: '는 것', subDef: 'The thing/fact that (nominalizing completed situation)' }
-        ]
-    },
-    {
-        term: '술이 건강에 안 좋으니까',
-        mainDef: 'Since alcohol is bad for health',
-        examples: [
-            { kor: "'술이 건강에 안 좋으니까 술 대신 대마 음료를 마시자.'", eng: "'Since alcohol is bad for health, let's drink cannabis beverages instead of alcohol.'" }
-        ],
-        subDefs: [
-            { subTerm: '건강', subDef: 'Health, wellness' },
-            { subTerm: '니까', subDef: 'Since, because (causal reason, often for justification)' }
-        ]
-    },
-    {
-        term: '이게 대체 어떻게 나온 생각이죠?',
-        mainDef: 'How on earth did this idea come about? (rhetorical disbelief)',
-        examples: [
-            { kor: "이게 대체 어떻게 나온 생각이죠?", eng: "How on earth did this idea come about?" }
-        ],
-        subDefs: [
-            { subTerm: '대체 어떻게', subDef: 'How on earth, how in the world (emphasizing disbelief)' },
-            { subTerm: '생각이 나오다', subDef: 'An idea comes out, thought emerges' }
-        ]
-    },
-    {
-        term: '역사가 깊잖아요',
-        mainDef: 'It has a deep/long history, you know',
-        examples: [
-            { kor: "술은 너무 역사가 깊잖아요.", eng: "Alcohol has such a long history, you know." }
-        ],
-        subDefs: [
-            { subTerm: '역사', subDef: 'History, historical background' },
-            { subTerm: '깊다', subDef: 'To be deep, to be long (for history)' },
-            { subTerm: '잖아요', subDef: 'You know (asserting known/obvious fact - polite)' }
-        ]
-    },
-    {
-        term: '건강에 해롭다는 게',
-        mainDef: 'The fact that it\'s harmful to health',
-        examples: [
-            { kor: "건강에 해롭다는 게 이제 의학이 발달을 하면서", eng: "The fact that it's harmful to health, now as medicine has developed" }
-        ],
-        subDefs: [
-            { subTerm: '건강', subDef: 'Health, wellness' },
-            { subTerm: '해롭다', subDef: 'To be harmful, to be detrimental, to be bad for' },
-            { subTerm: '는 게', subDef: 'The thing/fact that (nominalizing statement)' }
-        ]
-    },
-    {
-        term: '의학이 발달을 하면서',
-        mainDef: 'As medicine develops/has developed',
-        examples: [
-            { kor: "건강에 해롭다는 게 이제 의학이 발달을 하면서", eng: "The fact that it's harmful to health, now as medicine has developed" }
-        ],
-        subDefs: [
-            { subTerm: '의학', subDef: 'Medicine, medical science' },
-            { subTerm: '발달하다', subDef: 'To develop, to advance, to progress' },
-            { subTerm: '면서', subDef: 'While, as (simultaneous actions or process)' }
-        ]
-    },
-    {
-        term: '간에 해롭고 숙취가 있고',
-        mainDef: 'It\'s harmful to the liver and causes hangovers, and',
-        examples: [
-            { kor: "간에 해롭고 숙취가 있고 이런 걸 알게 된 거고,", eng: "We came to know things like it's harmful to the liver and causes hangovers," }
-        ],
-        subDefs: [
-            { subTerm: '간', subDef: 'Liver (organ)' },
-            { subTerm: '해롭다', subDef: 'To be harmful, to be detrimental' },
-            { subTerm: '숙취가 있다', subDef: 'To have a hangover, hangover exists' }
-        ]
-    },
-    {
-        term: '이런 걸 알게 된 거고',
-        mainDef: 'We came to know these things, and',
-        examples: [
-            { kor: "간에 해롭고 숙취가 있고 이런 걸 알게 된 거고,", eng: "We came to know things like it's harmful to the liver and causes hangovers," }
-        ],
-        subDefs: [
-            { subTerm: '이런 걸', subDef: 'These things, things like this (colloquial object)' },
-            { subTerm: '알게 되다', subDef: 'To come to know, to get to know, to become aware' },
-            { subTerm: 'ㄴ 거고', subDef: 'It is that..., and (colloquial explanatory connective)' }
-        ]
-    },
-    {
-        term: '우울증 약으로도 치료를 하는 거고',
-        mainDef: 'It\'s also used as medicine to treat depression, and',
-        examples: [
-            { kor: "대마는 아직은 우울증 약으로도 치료를 하는 거고,", eng: "Cannabis is still being used as medicine to treat depression, and" }
-        ],
-        subDefs: [
-            { subTerm: '우울증 약', subDef: 'Depression medication, antidepressant' },
-            { subTerm: '으로 치료하다', subDef: 'To treat with, to cure using (instrumental particle + verb)' },
-            { subTerm: '는 거고', subDef: 'It is that..., and (colloquial explanatory connective)' }
-        ]
-    },
-    {
-        term: '정신 안정에 도움이 되고',
-        mainDef: 'It helps with mental stability, and',
-        examples: [
-            { kor: "정신 안정에 도움이 되고 이런 얘기도 많단 말이에요.", eng: "There are many stories about it helping with mental stability and such." }
-        ],
-        subDefs: [
-            { subTerm: '정신 안정', subDef: 'Mental stability, psychological calm' },
-            { subTerm: '도움이 되다', subDef: 'To be helpful, to help with, to benefit' }
-        ]
-    },
-    {
-        term: '이런 얘기도 많단 말이에요',
-        mainDef: 'There are many stories like this, you see (emphasizing point)',
-        examples: [
-            { kor: "정신 안정에 도움이 되고 이런 얘기도 많단 말이에요.", eng: "There are many stories about it helping with mental stability and such." }
-        ],
-        subDefs: [
-            { subTerm: '이런 얘기', subDef: 'Stories/talk like this, this kind of narrative' },
-            { subTerm: 'ㄴ 말이에요', subDef: 'I\'m saying that, you see (emphatic explanation)' }
-        ]
-    }
-];
+                    { "term": "술 대신 마시는 게 있었으니", "mainDef": "There was something they drink instead of alcohol, so...", "subDefs": [ { "subTerm": "• 대신", "subDef": "instead of; in place of." }, { "subTerm": "• 마시는 게", "subDef": "the thing (they) drink (colloial form of -는 것이)." }, { "subTerm": "• -(으)니", "subDef": "grammar ending indicating reason or discovery ('because' or 'so...')." } ], "variants": ["술 대신 마시는 게 있었으니"], "examples": [ { "kor": "커피 대신 물을 마셔요.", "eng": "I drink water instead of coffee." }, { "kor": "이것은 마시는 게 아니에요.", "eng": "This is not a (thing for) drinking." }, { "kor": "지금 비가 오니, 집에 있어요.", "eng": "It's raining now, so I'm at home." } ] },
+                    { "term": "대마 음료", "mainDef": "hemp beverage; cannabis drink.", "subDefs": [ { "subTerm": "• 대마", "subDef": "hemp; cannabis." }, { "subTerm": "• 음료", "subDef": "beverage; drink." } ], "variants": ["대마 음료", "대마 음료란", "대마 음료 시장이", "대마 음료를"], "examples": [ { "kor": "'대마'는 식물이에요.", "eng": "Hemp is a plant." }, { "kor": "저는 시원한 음료를 좋아해요.", "eng": "I like cold drinks." } ] },
+                    { "term": "-라고 하다", "mainDef": "to be called; it is said that...", "subDefs": [ { "subTerm": "• -(이)라고 하다", "subDef": "indirect quotation for nouns ('to be called [N]') or statements ('to say that [S]').\n(e.g., 대마 음료라고 합니다 - It is called a 'hemp beverage'.)" } ], "variants": ["라고 합니다"], "examples": [ { "kor": "제 이름은 김민수라고 합니다.", "eng": "My name is Minsu Kim." } ] },
+                    { "term": "”현재 술을 마신다\"라고 답한 미국 성인", "mainDef": "American adults who answered that they 'currently drink alcohol'.", "subDefs": [ { "subTerm": "• -라고 답하다", "subDef": "to answer that..." }, { "subTerm": "• -ㄴ", "subDef": "past tense modifier describing the following noun ('who did...').\n(e.g., 답한 성인 - adults who answered.)" }, { "subTerm": "• 성인", "subDef": "adult." } ], "variants": ["“현재 술을 마신다\"라고 답한 미국 성인이"], "examples": [ { "kor": "'네'라고 답했어요.", "eng": "I answered 'yes'." }, { "kor": "어제 먹은 빵이 맛있어요.", "eng": "The bread I ate yesterday is delicious." }, { "kor": "그는 이제 성인이에요.", "eng": "He is an adult now." } ] },
+                    { "term": "역대 최저치를 기록할 정도", "mainDef": "to the point of recording the lowest level in history.", "subDefs": [ { "subTerm": "• 역대", "subDef": "in history; of all time." }, { "subTerm": "• 최저치", "subDef": "the lowest value/level." }, { "subTerm": "• 기록하다", "subDef": "to record; to mark." }, { "subTerm": "• -ㄹ/을 정도", "subDef": "to the extent that...; to the point of..." } ], "variants": ["역대 최저치를 기록할 정도"], "examples": [ { "kor": "오늘은 역대 가장 더운 날이에요.", "eng": "Today is the hottest day in history." }, { "kor": "온도가 최저치로 떨어졌어요.", "eng": "The temperature dropped to its lowest point." }, { "kor": "이름을 여기에 기록하세요.", "eng": "Please record your name here." }, { "kor": "너무 매워서 울 정도예요.", "eng": "It's so spicy to the point of crying." } ] },
+                    { "term": "대마초의 성분 중", "mainDef": "among the components of cannabis.", "subDefs": [ { "subTerm": "• 대마초", "subDef": "cannabis; marijuana." }, { "subTerm": "• 성분", "subDef": "component; ingredient." }, { "subTerm": "• 중", "subDef": "among; in the middle of." } ], "variants": ["대마초의 성분 중"], "examples": [ { "kor": "'대마초'는 불법이에요.", "eng": "Marijuana is illegal." }, { "kor": "이 약의 성분이 뭐예요?", "eng": "What are the ingredients of this medicine?" }, { "kor": "사과, 바나나, 오렌지 중에서 사과를 좋아해요.", "eng": "Among apples, bananas, and oranges, I like apples." } ] },
+                    { "term": "THC를 첨가하여 만든 음료", "mainDef": "a beverage made by adding THC.", "subDefs": [ { "subTerm": "• THC", "subDef": "THC (Tetrahydrocannabinol)." }, { "subTerm": "• 첨가하다", "subDef": "to add." }, { "subTerm": "• -여(서)", "subDef": "links actions in sequence ('do this *and then*...')." }, { "subTerm": "• -ㄴ/은", "subDef": "past tense modifier describing the following noun ('which was made...').\n(e.g., 만든 음료 - a beverage that was made.)" }, { "subTerm": "• 음료", "subDef": "beverage; drink." } ], "variants": ["THC를 첨가하여 만든 음료를", "THC를 첨가하여 만든 음료"], "examples": [ { "kor": "THC는 성분이에요.", "eng": "THC is an ingredient." }, { "kor": "설탕을 조금 첨가해요.", "eng": "Add a little sugar." }, { "kor": "일어나서 밥을 먹어요.", "eng": "I wake up and then eat." }, { "kor": "어제 본 영화가 재미있어요.", "eng": "The movie I watched yesterday is fun." }, { "kor": "무슨 음료 마실래요?", "eng": "What drink do you want?" } ] },
+                    { "term": "의미하는데요", "mainDef": "it means... (and...)", "subDefs": [ { "subTerm": "• 의미하다", "subDef": "to mean; to signify." }, { "subTerm": "• -는데요", "subDef": "grammar ending used to provide background information or introduce a new topic.\n(e.g., ...음료를 의미하는데요 - It means... a beverage, and...)" } ], "variants": ["의미하는데요"], "examples": [ { "kor": "이 단어는 '사랑'을 의미해요.", "eng": "This word means 'love'." }, { "kor": "지금 공부하는데요.", "eng": "I'm studying right now..." } ] },
+                    { "term": "엄청나게 커지고 있고", "mainDef": "is getting incredibly large (and...)", "subDefs": [ { "subTerm": "• 엄청나게", "subDef": "incredibly; enormously." }, { "subTerm": "• 커지다", "subDef": "to get bigger; to grow." }, { "subTerm": "• -고 있다", "subDef": "present progressive ('is ...-ing').\n(e.g., 커지고 있다 - is growing.)" } ], "variants": ["엄청나게 커지고 있고"], "examples": [ { "kor": "날씨가 엄청나게 추워요.", "eng": "The weather is incredibly cold." }, { "kor": "강아지가 많이 커졌어요.", "eng": "The puppy has gotten much bigger." }, { "kor": "친구가 밥을 먹고 있어요.", "eng": "My friend is eating." } ] },
+                    { "term": "여러 브랜드의 대마 음료를 마셔 볼 수 있는 축제", "mainDef": "a festival where you can try drinking various brands of hemp beverages.", "subDefs": [ { "subTerm": "• 여러", "subDef": "various; many." }, { "subTerm": "• -아/어 볼 수 있다", "subDef": "can try (doing something).\n(e.g., 마셔 볼 수 있다 - can try drinking.)" }, { "subTerm": "• -는", "subDef": "present tense modifier describing the following noun ('where you can...')." }, { "subTerm": "• 축제", "subDef": "festival." } ], "variants": ["여러 브랜드의 대마 음료를 마셔 볼 수 있는 축제가", "여러 브랜드의 대마 음료를 마셔 볼 수 있는 축제"], "examples": [ { "kor": "저는 여러 나라에 가고 싶어요.", "eng": "I want to go to various countries." }, { "kor": "한국 음식을 먹어 볼 수 있어요.", "eng": "You can try eating Korean food." }, { "kor": "저기 가는 사람이 제 친구예요.", "eng": "The person going over there is my friend." }, { "kor": "오늘 학교에서 축제를 해요.", "eng": "There is a festival at school today." } ] },
+                    { "term": "열리기도 하고", "mainDef": "it is also held (and...)", "subDefs": [ { "subTerm": "• 축제가 열리다", "subDef": "a festival is held." }, { "subTerm": "• -기도 하다", "subDef": "to also (do something); sometimes (do something).\n(e.g., 열리기도 하고 - it is also held, and...)" } ], "variants": ["열리기도 하고"], "examples": [ { "kor": "봄에 꽃 축제가 열려요.", "eng": "A flower festival is held in the spring." }, { "kor": "주말에 영화를 보기도 해요.", "eng": "I sometimes watch movies on the weekend." } ] },
+                    { "term": "쉽게 구매할 수 있다는데", "mainDef": "they say you can easily purchase it (and...)", "subDefs": [ { "subTerm": "• 쉽게", "subDef": "easily." }, { "subTerm": "• 구매하다", "subDef": "to purchase." }, { "subTerm": "• -는데", "subDef": "grammar ending used to report something heard ('they say...'). Contraction of -다고 하는데." } ], "variants": ["쉽게 구매할 수 있다는데"], "examples": [ { "kor": "이 문제는 쉬워요. 쉽게 풀 수 있어요.", "eng": "This problem is easy. I can solve it easily." }, { "kor": "가방을 구매했어요.", "eng": "I purchased a bag." }, { "kor": "그 식당 맛있는데...", "eng": "That restaurant is delicious..." } ] },
+                    { "term": "가장 큰 이유", "mainDef": "the biggest reason.", "subDefs": [ { "subTerm": "• 가장", "subDef": "the most; -est (superlative)." }, { "subTerm": "• 이유", "subDef": "reason." } ], "variants": ["가장 큰 이유는", "가장 큰 이유"], "examples": [ { "kor": "이것이 가장 좋아요.", "eng": "This is the best." }, { "kor": "학교에 늦은 이유가 뭐예요?", "eng": "What is the reason you are late for school?" } ] },
+                    { "term": "술을 대하는 MZ세대의 태도", "mainDef": "the attitude of Gen Z towards alcohol.", "subDefs": [ { "subTerm": "• MZ세대", "subDef": "Gen Z (MZ Generation)." }, { "subTerm": "• (을/를) 대하는 태도", "subDef": "attitude towards (something/someone)." } ], "variants": ["술을 대하는 MZ세대의 태도가", "술을 대하는 MZ세대의 태도"], "examples": [ { "kor": "MZ세대는 젊은 사람들이에요.", "eng": "Gen Z are young people." }, { "kor": "친구를 대하는 태도가 좋아요.", "eng": "His/her attitude towards friends is good." } ] },
+                    { "term": "변했기 때문이라는데요.", "mainDef": "they say it's because it has changed.", "subDefs": [ { "subTerm": "• 태도가 변하다", "subDef": "attitude changes." }, { "subTerm": "• -기 때문이라는데요", "subDef": "Combination of '-기 때문에' (because) + '-(이)라고 하다' (they say) + '-는데요' (background info).\n(e.g., ...변했기 때문이라는데요 - ...they say it's because it has changed.)" } ], "variants": ["변했기 때문이라는데요"], "examples": [ { "kor": "그 사람이 친절하게 변했어요.", "eng": "That person's attitude changed to be kind." }, { "kor": "오늘 춥기 때문이라는데요.", "eng": "They say it's because it's cold today." } ] },
+                    { "term": "실제로", "mainDef": "actually; in reality.", "subDefs": [], "variants": ["실제로"], "examples": [ { "kor": "그는 실제로 키가 커요.", "eng": "He is actually tall." } ] },
+                    { "term": "18세에서 34세의 음주율 변화가 가장 크기도 한데,", "mainDef": "the change in the drinking rate for 18-34 year olds is also the largest, and...", "subDefs": [ { "subTerm": "• 음주율", "subDef": "drinking rate." }, { "subTerm": "• 변화", "subDef": "change." }, { "subTerm": "• -기도 하다", "subDef": "to also (be something)." }, { "subTerm": "• -ㄴ/은데", "subDef": "grammar ending providing background context ('...and...' or '...but...')." } ], "variants": ["18세에서 34세의 음주율 변화가 가장 크기도 한데"], "examples": [ { "kor": "이 나라의 음주율이 높아요.", "eng": "This country's drinking rate is high." }, { "kor": "날씨의 변화가 심해요.", "eng": "The change in weather is severe." }, { "kor": "저는 가끔 울기도 해요.", "eng": "I also cry sometimes." }, { "kor": "이 옷은 예쁜데, 좀 비싸요.", "eng": "These clothes are pretty, but a bit expensive." } ] },
+                    { "term": "미국뿐만 아니라 전 세계적으로", "mainDef": "not only in the US, but also globally.", "subDefs": [ { "subTerm": "• -뿐만 아니라", "subDef": "not only... but also..." }, { "subTerm": "• 전 세계적으로", "subDef": "globally; worldwide." } ], "variants": ["미국뿐만 아니라 전 세계적으로"], "examples": [ { "kor": "사과뿐만 아니라 바나나도 좋아해요.", "eng": "I like not only apples but also bananas." }, { "kor": "BTS는 전 세계적으로 유명해요.", "eng": "BTS is famous worldwide." } ] },
+                    { "term": "건강을 중요하게 생각하는 게", "mainDef": "thinking of health as important (is)...", "subDefs": [ { "subTerm": "• 건강", "subDef": "health." }, { "subTerm": "• 중요하게 생각하다", "subDef": "to think of (something) as important." }, { "subTerm": "• -는 게", "subDef": "the act of... (colloial form of -는 것이).\n(e.g., ...생각하는 게 트렌드가 되니 - ...thinking (of it as important) became a trend, so...)" } ], "variants": ["건강을 중요하게 생각하는 게"], "examples": [ { "kor": "건강이 중요해요.", "eng": "Health is important." }, { "kor": "저는 가족을 중요하게 생각해요.", "eng": "I think of my family as important." }, { "kor": "매일 운동하는 게 좋아요.", "eng": "Exercising every day is good." } ] },
+                    { "term": "트렌드가 되니", "mainDef": "since it became a trend...", "subDefs": [ { "subTerm": "• 트렌드", "subDef": "trend." }, { "subTerm": "• -니", "subDef": "grammar ending indicating reason ('because' or 'since')." } ], "variants": ["트렌드가 되니"], "examples": [ { "kor": "요즘 트렌드예요.", "eng": "It's the trend these days." }, { "kor": "배가 고프니, 밥을 먹어요.", "eng": "I'm hungry, so I'm eating." } ] },
+                    { "term": "술을 멀리하는 마음까지 이어지게 된 것", "mainDef": "it led to the mindset of avoiding alcohol.", "subDefs": [ { "subTerm": "• 멀리하다", "subDef": "to avoid; to keep at a distance." }, { "subTerm": "• -는", "subDef": "modifier describing the following noun ('mindset of avoiding...')." }, { "subTerm": "• 마음이 이어지다", "subDef": "a feeling/mindset is connected to; leads to." }, { "subTerm": "• -는 것", "subDef": "the act of...; the fact that... (nominalization)." } ], "variants": ["술을 멀리하는 마음까지 이어지게 된 것"], "examples": [ { "kor": "나쁜 친구는 멀리하세요.", "eng": "Stay away from bad friends." }, { "kor": "지금 읽는 책이 재미있어요.", "eng": "The book I am reading now is fun." }, { "kor": "두 사람의 마음이 이어졌어요.", "eng": "The two people's hearts connected." }, { "kor": "노래하는 것을 좋아해요.", "eng": "I like singing." } ] },
+                    { "term": "술이 건강에 안 좋으니까", "mainDef": "because alcohol is not good for health...", "subDefs": [ { "subTerm": "• 건강", "subDef": "health." }, { "subTerm": "• -니까", "subDef": "grammar ending indicating a strong reason ('because...')." } ], "variants": ["술이 건강에 안 좋으니까"], "examples": [ { "kor": "건강을 위해 운동해요.", "eng": "I exercise for health." }, { "kor": "날씨가 좋으니까, 공원에 가요.", "eng": "The weather is nice, so let's go to the park." } ] },
+                    { "term": "술 대신", "mainDef": "instead of alcohol.", "subDefs": [ { "subTerm": "• 대신", "subDef": "instead of; in place of." } ], "variants": ["술 대신"], "examples": [ { "kor": "밥 대신 빵을 먹었어요.", "eng": "I ate bread instead of rice." } ] },
+                    { "term": "이게 대체 어떻게 나온 생각이죠?", "mainDef": "How on earth did this idea come about?", "subDefs": [ { "subTerm": "• 이게 대체", "subDef": "this, on earth... (adds emphasis)." }, { "subTerm": "• 생각이 나오다", "subDef": "an idea comes out/appears." } ], "variants": ["이게 대체 어떻게 나온 생각이죠"], "examples": [ { "kor": "이게 대체 뭐예요?", "eng": "What on earth is this?" }, { "kor": "좋은 생각이 나왔어요.", "eng": "A good idea came up." } ] },
+                    { "term": "술은 너무 역사가 깊잖아요", "mainDef": "Alcohol has a very deep history, you know.", "subDefs": [ { "subTerm": "• 역사", "subDef": "history." }, { "subTerm": "• 깊다", "subDef": "to be deep." }, { "subTerm": "• -잖아요", "subDef": "grammar ending used to state something the listener should already know ('...you know')." } ], "variants": ["술은 너무 역사가 깊잖아요"], "examples": [ { "kor": "역사 공부는 재미있어요.", "eng": "Studying history is fun." }, { "kor": "이 호수는 물이 깊어요.", "eng": "This lake is deep." }, { "kor": "오늘 일요일이잖아요.", "eng": "It's Sunday today, you know." } ] },
+                    { "term": "건강에 해롭다는 게", "mainDef": "the fact that it's harmful to health...", "subDefs": [ { "subTerm": "• 건강", "subDef": "health." }, { "subTerm": "• 해롭다", "subDef": "to be harmful." }, { "subTerm": "• -는 게", "subDef": "the fact that... (colloial form of -는 것이)." } ], "variants": ["건강에 해롭다는 게"], "examples": [ { "kor": "건강이 최고예요.", "eng": "Health is the best." }, { "kor": "담배는 몸에 해로워요.", "eng": "Smoking is harmful to the body." }, { "kor": "공부하는 게 중요해요.", "eng": "Studying is important." } ] },
+                    { "term": "의학이 발달을 하면서", "mainDef": "as medicine developed...", "subDefs": [ { "subTerm": "• 의학", "subDef": "medicine (the field of study)." }, { "subTerm": "• 발달하다", "subDef": "to develop." }, { "subTerm": "• -(으)면서", "subDef": "grammar ending indicating simultaneous action ('while') or a change over time ('as')." } ], "variants": ["의학이 발달을 하면서"], "examples": [ { "kor": "그는 의학을 공부해요.", "eng": "He studies medicine." }, { "kor": "도시가 많이 발달했어요.", "eng": "The city has developed a lot." }, { "kor": "음악을 들으면서 숙제해요.", "eng": "I do homework while listening to music." } ] },
+                    { "term": "간에 해롭고 숙취가 있고", "mainDef": "it's harmful to the liver and there's a hangover...", "subDefs": [ { "subTerm": "• 간", "subDef": "liver." }, { "subTerm": "• 해롭다", "subDef": "to be harmful." }, { "subTerm": "• 숙취가 있다", "subDef": "to have a hangover." } ], "variants": ["간에 해롭고 숙취가 있고"], "examples": [ { "kor": "간은 중요해요.", "eng": "The liver is important." }, { "kor": "이것은 몸에 해로워요.", "eng": "This is bad for the body." }, { "kor": "어제 술을 마셔서 숙취가 있어요.", "eng": "I have a hangover because I drank yesterday." } ] },
+                    { "term": "이런 걸 알게 된 거고", "mainDef": "we came to know this (and...)", "subDefs": [ { "subTerm": "• 이런 걸", "subDef": "this kind of thing (colloial)." }, { "subTerm": "• 알게 되다", "subDef": "to come to know; to find out." }, { "subTerm": "• -ㄴ/은 거고", "subDef": "colloial ending stating a fact or situation ('it's that... and...')." } ], "variants": ["이런 걸 알게 된 거고"], "examples": [ { "kor": "저는 이런 걸 좋아해요.", "eng": "I like this kind of thing." }, { "kor": "그의 비밀을 알게 됐어요.", "eng": "I came to know his secret." }, { "kor": "그냥 친구인 거고, 애인은 아니에요.", "eng": "We're just friends, not lovers." } ] },
+                    { "term": "우울증 약으로도 치료를 하는 거고", "mainDef": "it's also used to treat depression (and...)", "subDefs": [ { "subTerm": "• 우울증 약", "subDef": "depression medicine." }, { "subTerm": "• -으로 치료하다", "subDef": "to treat with..." }, { "subTerm": "• -는 거고", "subDef": "colloial ending stating a fact or situation ('it's that... and...')." } ], "variants": ["우울증 약으로도 치료를 하는 거고"], "examples": [ { "kor": "그는 우울증 약을 먹어요.", "eng": "He takes depression medicine." }, { "kor": "이 병은 약으로 치료해요.", "eng": "This disease is treated with medicine." }, { "kor": "이건 먹는 거고, 저건 마시는 거예요.", "eng": "This is for eating, and that is for drinking." } ] },
+                    { "term": "정신 안정에 도움이 되고", "mainDef": "it helps with mental stability (and...)", "subDefs": [ { "subTerm": "• 정신 안정", "subDef": "mental stability." }, { "subTerm": "• 도움이 되다", "subDef": "to be helpful; to help." } ], "variants": ["정신 안정에 도움이 되고"], "examples": [ { "kor": "음악은 정신 안정에 좋아요.", "eng": "Music is good for mental stability." }, { "kor": "이 책은 공부에 도움이 돼요.", "eng": "This book is helpful for studying." } ] },
+                    { "term": "이런 얘기도 많단 말이에요", "mainDef": "there's a lot of talk like this, you see.", "subDefs": [ { "subTerm": "• 이런 얘기", "subDef": "this kind of talk/story." }, { "subTerm": "• -ㄴ/은/단 말이에요", "subDef": "grammar ending used to emphasize or re-state a fact ('I'm saying...'; '...you see')." } ], "variants": ["이런 얘기도 많단 말이에요"], "examples": [ { "kor": "이런 얘기는 재미없어요.", "eng": "This kind of story is not fun." }, { "kor": "저는 학생이란 말이에요.", "eng": "I'm telling you I'm a student." } ] }
+                ];
                 const sentences = [
-                    // Previous content removed as it was for a different topic.
+                    { id: 1, parts: ["요즘 미국 사람들은 술 대신 '", "' 음료를 마신다고 해요."], answer: "대마", bank: ["대마", "커피", "에너지", "마차"], eng_parts: ["People in the US are reportedly drinking '", "' beverages instead of alcohol these days."], eng_answer: "cannabis", eng_hint: "The main topic of the news report.", eng_explanation: "Correct. The script introduces '대마 음료' (cannabis drinks) as the beverage replacing alcohol.", eng_wrongAnswerExplanations: { "커피": "Coffee is not mentioned as the replacement.", "에너지": "Energy drinks are not mentioned.", "마차": "Matcha is not mentioned." } },
+                    { id: 2, parts: ["대마 음료란 THC를 '", "' 만든 음료예요."], answer: "첨가하여", bank: ["첨가하여", "참가하여", "사서", "빼서"], eng_parts: ["Cannabis drinks are beverages made by '", "' THC."], eng_answer: "adding", eng_hint: "Verb (ending in -아/어서) meaning 'to add' or 'to include'.", eng_explanation: "Correct. '첨가하여' means 'by adding'. The script says the drinks are made by adding THC. The '-아/어서' indicates the method.", eng_wrongAnswerExplanations: { "참가하여": "This means 'by participating' and sounds similar but is incorrect.", "사서": "This means 'by buying'.", "빼서": "This means 'by removing' or 'by subtracting', which is the opposite." } },
+                    { id: 3, parts: ["대마 음료 시장이 커진 가장 큰 이유는 MZ세대의 술을 대하는 '", "'가 변했기 때문이에요."], answer: "태도", bank: ["태도", "대화", "법", "건강"], eng_parts: ["The biggest reason the cannabis drink market has grown is because the '", "' of the MZ generation toward alcohol has changed."], eng_answer: "attitude", eng_hint: "A noun meaning 'attitude' or 'stance'.", eng_explanation: "Correct. The script says the biggest reason is the change in '태도' (attitude) of the MZ generation.", eng_wrongAnswerExplanations: { "대화": "This means 'conversation'.", "법": "This means 'law'.", "건강": "Health is a related trend, but 'attitude' is the specific word used." } },
+                    { id: 4, parts: ["술은 역사가 깊지만, 의학이 발달하면서 '", "' 밝혀졌어요."], answer: "건강에 해롭다는 게", bank: ["건강에 해롭다는 게", "정신 안정에 좋다는 게", "숙취가 없다는 게", "우울증에 좋다는 게"], eng_parts: ["Alcohol has a long history, but as medicine developed, it was revealed '", "'."], eng_answer: "that it is harmful to health", eng_hint: "The negative effect of alcohol mentioned by Speaker 2.", eng_explanation: "Correct. Speaker 2 explains that '건강에 해롭다는 게' (that it is harmful to health) was discovered as medicine advanced.", eng_wrongAnswerExplanations: { "정신 안정에 좋다는 게": "This was said about cannabis, not alcohol.", "숙취가 없다는 게": "This is incorrect; hangovers are a known harm of alcohol.", "우울증에 좋다는 게": "This was said about cannabis, not alcohol." } },
+                    { id: 5, parts: ["건강을 중요하게 생각하는 게 트렌드가 돼서 사람들이 술을 '", "'."], answer: "멀리한다고 해요", bank: ["멀리한다고 해요", "좋아한다고 해요", "가까이한다고 해요", "산다고 해요"], eng_parts: ["Because prioritizing health has become a trend, people are '", "' alcohol."], eng_answer: "reportedly staying away from", eng_hint: "A verb phrase meaning 'to keep a distance from' or 'to avoid'.", eng_explanation: "Correct. '멀리한다고 해요' means 'they say people are staying away from'. This is the result of the health trend.", eng_wrongAnswerExplanations: { "좋아한다고 해요": "This means 'reportedly like', which is the opposite.", "가까이한다고 해요": "This means 'reportedly stay close to', which is the opposite.", "산다고 해요": "This means 'reportedly buy', which is not the main point." } },
+                    { id: 6, parts: ["반면에, 대마는 '", "'에 도움이 된다고 해요."], answer: "정신 안정", bank: ["정신 안정", "집중력", "운동", "정신병"], eng_parts: ["On the other hand, cannabis reportedly helps with '", "'."], eng_answer: "mental stability", eng_hint: "A positive effect on the mind mentioned by Speaker 2.", eng_explanation: "Correct. Speaker 2 says there are many stories about cannabis helping with '정신 안정' (mental stability).", eng_wrongAnswerExplanations: { "집중력": "This means 'concentration' and was not mentioned.", "운동": "This means 'exercise' and was not mentioned.", "정신병": "This means 'mental illness', which is the opposite of what was said." } },
+                    { id: 7, parts: ["대마는 우울증을 '", "' 약으로 사용해요."], answer: "치료하는", bank: ["치료하는", "만드는", "먹는", "마시는"], eng_parts: ["Cannabis is used as medicine that '", "' depression."], eng_answer: "treats", eng_hint: "Present tense modifier of '치료하다' (to treat/cure an illness).", eng_explanation: "Correct. '치료하는' is the modifier form of '치료하다' (to treat). The script says it's used as a '우울증 약' (depression medicine).", eng_wrongAnswerExplanations: { "만드는": "This means 'makes' or 'causes', which is the opposite.", "먹는": "This means 'eating', which is not the purpose of the medicine itself.", "마시는": "This means 'drinking'. While the topic is drinks, the verb for medicine's function is 'to treat'." } },
+                    { id: 8, parts: ["하지만 '", "' 대마 음료가 건강에 좋을까요?"], answer: "실제로", bank: ["실제로", "가짜로", "우연히", "대충"], eng_parts: ["But are cannabis drinks '", "' healthy?"], eng_answer: "really", eng_hint: "An adverb meaning 'really', 'actually', or 'in reality'.", eng_explanation: "Correct. '실제로' (really/actually) is used to question if the perceived benefits are true. This reflects the news's skeptical question: '이게 대체 어떻게 나온 생각이죠?'", eng_wrongAnswerExplanations: { "가짜로": "This means 'falsely' or 'fake'.", "우연히": "This means 'by chance'.", "대충": "This means 'roughly' or 'carelessly'." } }
                 ];
                 const discussionQuestions = [
-                    // Previous content removed as it was for a different topic.
+                    { num: 1, kor: "여러분의 나라에서도 젊은 사람들이 술을 많이 안 마셔요?", eng: "In your country, do young people also not drink much alcohol?", vocab: [ { term: "젊은 사람들", meaning_eng: "Young people" }, { term: "술을 많이 안 마시다", meaning_eng: "To not drink much alcohol" } ] },
+                    { num: 2, kor: "\"술이 건강에 안 좋으니까 술 대신 대마 음료를 마시자\"라는 생각에 동의해요?", eng: "Do you agree with the idea that \"Alcohol is unhealthy, so let's drink cannabis drinks instead\"?", vocab: [ { term: "술 대신", meaning_eng: "Instead of alcohol" }, { term: "건강에 안 좋다", meaning_eng: "Is unhealthy / bad for health" }, { term: "동의해요?", meaning_eng: "Do you agree?" } ] },
+                    { num: 3, kor: "대마가 \"우울증 치료\"와 \"정신 안정\"에 도움이 된다는 주장이 있어요. 그런데 의사의 처방 없이 대마 음료를 마시는 것이 안전할까요?", eng: "There's a claim that cannabis helps with 'treating depression' and 'mental stability'. But is it safe to drink cannabis drinks without a doctor's prescription?", vocab: [ { term: "우울증 치료", meaning_eng: "Treating depression" }, { term: "정신 안정", meaning_eng: "Mental stability" }, { term: "의사의 처방 없이", meaning_eng: "Without a doctor's prescription" }, { term: "안전할까요?", meaning_eng: "Is it safe?" } ] },
+                    { num: 4, kor: "대마 음료도 술처럼 건강에 해롭다고 생각해요? 사람들이 대마 음료를 계속 마시면 10년 후에는 어떤 문제가 나타날까요?", eng: "Do you think cannabis drinks are also harmful to health, like alcohol? If people keep drinking them, what problems might appear in 10 years?", vocab: [ { term: "건강에 해롭다", meaning_eng: "To be harmful to health" }, { term: "계속 마시면", meaning_eng: "If (one) keeps drinking" }, { term: "문제가 나타나다", meaning_eng: "Problems appear" } ] },
+                    { num: 5, kor: "MZ세대가 술을 멀리하는 이유가 정말 건강 때문일까요? 다른 이유가 있을까요?", eng: "Is health really the reason the MZ generation is staying away from alcohol? Could there be other reasons?", vocab: [ { term: "술을 멀리하다", meaning_eng: "To stay away from alcohol" }, { term: "건강 때문", meaning_eng: "Because of health" }, { term: "다른 이유", meaning_eng: "Other reasons" } ] },
+                    { num: 6, kor: "여러분의 나라에서 대마 음료가 합법화된다면 찬성할 거예요? 반대할 거예요?", eng: "If cannabis drinks were legalized in your country, would you agree (support) or disagree (oppose)?", vocab: [ { term: "합법화되다", meaning_eng: "To be legalized" }, { term: "찬성하다", meaning_eng: "To agree, to support" }, { term: "반대하다", meaning_eng: "To disagree, to oppose" } ] },
+                    { num: 7, kor: "대마 음료 말고, 어떤 음료가 파티에서 술을 대체할 수 있을까요? 어떤 것이 있을까요?", eng: "Besides cannabis drinks, what other beverages could replace alcohol at parties? What kinds are there?", vocab: [ { term: "... 말고", meaning_eng: "Besides..." }, { term: "대체하다", meaning_eng: "To replace, to substitute" }, { term: "어떤 것이 있을까요?", meaning_eng: "What kinds are there?" } ] },
+                    { num: 8, kor: "대마 음료처럼 '건강'이 새로운 '트렌드'가 되는 현상에 대해 어떻게 생각해요? (예: 제로 슈거 음료, 비건 음식 등)", eng: "What do you think about the phenomenon of 'health' becoming a new 'trend', like with cannabis drinks? (e.g., zero-sugar drinks, vegan food, etc.)", vocab: [ { term: "트렌드", meaning_eng: "Trend" }, { term: "현상", meaning_eng: "Phenomenon" }, { term: "제로 슈거", meaning_eng: "Zero sugar" }, { term: "비건 음식", meaning_eng: "Vegan food" } ] }
                 ];
                 return { scriptContent, vocabAndGrammarList, sentences, discussionQuestions };
             }, []);
@@ -1198,11 +962,11 @@
                 <div className="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
                     <div className="mx-auto transition-all duration-300" style={{ maxWidth: containerWidth }}>
                         <header className="text-center mb-12">
-                            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-2">“술보다 대마가 낫다~” 건강 음료라고?</h1>
-                            <p className="text-xl text-gray-500" style={{fontFamily: "'Nanum Gothic', sans-serif"}}>“술보다 대마가 낫다~” 건강 음료라고?</p>
+                            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-2">술보다 대마 음료가 건강에 좋을까요?</h1>
+                            <p className="text-xl text-gray-500" style={{fontFamily: "'Nanum Gothic', sans-serif"}}>Are cannabis-infused drinks healthier than alcohol?</p>
                         </header>
                         <Tabs tabs={tabs} />
-                        {layoutMode === 'mobile' && (
+                        {(layoutMode === 'mobile' || layoutMode === 'split') && (
                             <div className="pt-10">
                                 <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><List className="w-8 h-8 text-green-600"/> 핵심 어휘 (Key Vocabulary)</h2>
                                 <div className="w-full">
