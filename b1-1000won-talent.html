@@ -70,12 +70,21 @@
         }
         
         /* 탭 반응형 글자 크기 */
-        .tab-korean { font-size: clamp(8px, 2.5vw, 16px); }
-        .tab-english { font-size: clamp(8px, 2vw, 14px); }
+        /* [수정]
+          - 1.6vw -> 1.3vw, 1.4vw -> 1.1vw로 변경.
+          - 뷰포트 너비가 줄어들 때 글꼴이 더 일찍, 더 많이 작아지도록 하여 
+            줄 바꿈(flex-wrap)이 발생하기 전에 탭이 한 줄에 머무를 수 있도록 함.
+          - 6px가 최소 크기이며, 이 크기에서도 공간이 부족하면 flex-wrap이 적용됨.
+        */
+        .tab-korean { font-size: clamp(6px, 1.3vw, 16px); } /* Min 6px, scales at 1.3vw, Max 16px */
+        .tab-english { font-size: clamp(6px, 1.1vw, 14px); } /* Min 6px, scales at 1.1vw, Max 14px */
         
         @media (max-width: 640px) {
-            .tab-korean { font-size: clamp(8px, 3vw, 14px); }
-            .tab-english { font-size: clamp(8px, 2.5vw, 12px); }
+            /* [수정] 
+              - 640px 이하에서는 <span className="flex flex-col ...">이 적용되어
+                어차피 탭 버튼이 좁아지므로, 글꼴 크기 미디어 쿼리는 삭제.
+              - 기본 clamp()가 모든 크기를 처리하도록 함.
+            */
         }
         .script-highlight { background-color: #e0f2fe; border-radius: 8px; }
         .vocab-highlight { background-color: #dcfce7; border: 2px solid #22c55e; border-radius: 8px; }
@@ -321,6 +330,7 @@
             const hoverTimeoutRef = useRef(null);
             const scriptWrapperRef = useRef(null);
             const clipTimeoutRef = useRef(null);
+            const clipIntervalRef = useRef(null);
 
             const activeScriptLineRef = useRef(activeScriptLine);
             activeScriptLineRef.current = activeScriptLine;
@@ -365,6 +375,7 @@
                 return () => { 
                     if (intervalRef.current) clearInterval(intervalRef.current); 
                     if (clipTimeoutRef.current) clearTimeout(clipTimeoutRef.current);
+                    if (clipIntervalRef.current) clearInterval(clipIntervalRef.current);
                 };
             }, [setupPlayer, player]);
 
@@ -448,24 +459,44 @@
             }, []);
 
             const handlePlayClip = (line) => {
-                if (!player || !line.time) return;
+              if (!player || !line.time) return;
 
-                if (clipTimeoutRef.current) {
-                    clearTimeout(clipTimeoutRef.current);
+              // 기존 타임아웃/인터벌 정리
+              if (clipTimeoutRef.current) { clearTimeout(clipTimeoutRef.current); clipTimeoutRef.current = null; }
+              if (clipIntervalRef.current) { clearInterval(clipIntervalRef.current); clipIntervalRef.current = null; }
+
+              const [start, end] = line.time;
+
+              // 시크 & 재생 (allowSeekAhead = true 권장)
+              try {
+                player.pauseVideo?.();
+                player.seekTo?.(start, true);
+                // 혹시 최신 배속이 반영 안 되어 있으면 보정
+                if (player.setPlaybackRate && typeof playbackRate === 'number') {
+                  player.setPlaybackRate(playbackRate);
                 }
+                player.playVideo?.();
+              } catch (e) { console.error(e); }
 
-                const [start, end] = line.time;
-                const duration = (end - start) * 1000;
+              // 실제로 PLAYING이 된 뒤부터 end를 감시
+              const waitForPlaying = setInterval(() => {
+                if (!player.getPlayerState) return;
+                
+                // YT.PlayerState.PLAYING (값: 1)
+                if (player.getPlayerState() === 1) {
+                  clearInterval(waitForPlaying);
 
-                if (player.seekTo && player.playVideo && player.pauseVideo && duration > 0) {
-                    player.seekTo(start);
-                    player.playVideo();
-
-                    clipTimeoutRef.current = setTimeout(() => {
-                        player.pauseVideo();
-                        clipTimeoutRef.current = null;
-                    }, duration);
+                  // 30~50ms 간격이면 충분히 매끄럽습니다.
+                  clipIntervalRef.current = setInterval(() => {
+                    const t = player.getCurrentTime ? player.getCurrentTime() : 0;
+                    if (t >= (end - 0.05)) { // 약간의 여유로 0.05초 앞에서 컷
+                      player.pauseVideo?.();
+                      clearInterval(clipIntervalRef.current);
+                      clipIntervalRef.current = null;
+                    }
+                  }, 40);
                 }
+              }, 40);
             };
 
             const handleRateChange = (e) => {
