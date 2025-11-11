@@ -167,7 +167,7 @@
         });
 
         // --- [동영상 자료] 탭 관련 컴포넌트 ---
-        const HighlightedText = React.memo(({ text, highlightData, onWordHover, onWordLeave, lineId, activeWordId }) => {
+        const HighlightedText = React.memo(({ text, highlightData, onWordHover, onWordLeave, onWordClick, lineId, activeWordId }) => {
             if (!text || !highlightData) return text;
             const { regex, wordMap, sortedWords } = highlightData;
             const parts = text.split(regex);
@@ -193,6 +193,7 @@
                     className={classes}
                     onMouseEnter={(e) => onWordHover(e, baseForm, lineId, index)}
                     onMouseLeave={onWordLeave}
+                    onClick={(e) => onWordClick(e, baseForm)}
                 >{part}</span>;
             })}</>);
         });
@@ -240,13 +241,15 @@
                             ))}</div>
                         )}
                     </div>
+                    {/* item.examples가 존재하고, 0개 이상일 때만 버튼을 렌더링합니다. */}
                     {item.examples && item.examples.length > 0 && (
                         <div className="mt-3 no-print">
                             <button onClick={() => setShowExamples(!showExamples)} className="text-xs bg-green-200 hover:bg-green-300 text-gray-600 py-1 px-2 rounded-md">
-                                {showExamples ? '예문 닫기' : 'Sentence Examples'}
+                                {showExamples ? 'Close Examples' : 'Sentence Examples'}
                             </button>
+                            {/* showExamples가 true일 때 예문 목록을 보여줍니다. */}
                             {showExamples && (
-                                <div className="mt-3 p-3 bg-green-50 rounded-lg space-y-3 text-[15px]">
+                                <div className="mt-3 p-3 bg-green-50 rounded-lg space-y-3 text-[16px]">
                                     {item.examples.map((ex, index) => (
                                         <div key={index}>
                                             <p className="font-medium text-gray-800">{ex.kor}</p>
@@ -270,10 +273,11 @@
             const [hoverPopupData, setHoverPopupData] = useState(null);
             const [highlightedVocab, setHighlightedVocab] = useState(null);
             const [translationsVisible, setTranslationsVisible] = useState({});
-            const [playerHeight, setPlayerHeight] = useState(0);
+            // const [playerHeight, setPlayerHeight] = useState(0); // 높이 동적 조절로 인해 제거
             const [isVocabSidebarVisible, setIsVocabSidebarVisible] = useState(true);
             const [isPortrait, setIsPortrait] = useState(window.matchMedia("(orientation: portrait)").matches);
-            const [playbackRate, setPlaybackRate] = useState(1); // 재생 속도 상태 추가
+            const [playbackRate, setPlaybackRate] = useState(0.65); // *** 기본 속도를 0.65x로 설정
+            const [pinnedWordData, setPinnedWordData] = useState(null); // *** 팝업 고정 상태
 
             const scriptLineRefs = useRef({});
             const vocabRefs = useRef({});
@@ -296,7 +300,7 @@
 
             const onPlayerReady = useCallback((event) => {
                 setPlayer(event.target);
-                event.target.setPlaybackRate(playbackRate); // 플레이어 준비 시 현재 속도 설정
+                event.target.setPlaybackRate(playbackRate); // *** 플레이어 준비 시 현재 속도(0.65x) 설정
             }, [playbackRate]);
 
             const setupPlayer = useCallback(() => {
@@ -318,6 +322,22 @@
                 return () => mediaQuery.removeEventListener('change', handleOrientationChange);
             }, []);
 
+            // *** 팝업 고정 해제를 위한 전역 클릭 리스너
+            useEffect(() => {
+                const handleGlobalClick = (e) => {
+                    // 팝업이 고정되어 있고, 클릭한 대상이 하이라이트된 단어가 아닐 경우
+                    if (pinnedWordData && !e.target.closest('.highlight-general')) {
+                        setPinnedWordData(null);
+                        setHighlightedVocab(null);
+                    }
+                };
+                
+                document.addEventListener('click', handleGlobalClick);
+                return () => {
+                    document.removeEventListener('click', handleGlobalClick);
+                };
+            }, [pinnedWordData]); // pinnedWordData 상태가 바뀔 때마다 이 effect를 재실행
+
             useEffect(() => {
                 if (window.YT && document.getElementById('youtube-player')) {
                     if (!player) setupPlayer();
@@ -330,16 +350,17 @@
                 };
             }, [setupPlayer, player]);
 
-            useEffect(() => {
-                let ro;
-                if (playerContainerRef.current) {
-                    const updateHeight = () => { if (playerContainerRef.current) setPlayerHeight(playerContainerRef.current.offsetHeight); };
-                    ro = new ResizeObserver(updateHeight);
-                    ro.observe(playerContainerRef.current);
-                    updateHeight();
-                }
-                return () => ro?.disconnect();
-            }, []);
+            // // 높이 동적 조절로 인해 제거
+            // useEffect(() => {
+            //     let ro;
+            //     if (playerContainerRef.current) {
+            //         const updateHeight = () => { if (playerContainerRef.current) setPlayerHeight(playerContainerRef.current.offsetHeight); };
+            //         ro = new ResizeObserver(updateHeight);
+            //         ro.observe(playerContainerRef.current);
+            //         updateHeight();
+            //     }
+            //     return () => ro?.disconnect();
+            // }, []);
 
             // playbackRate 상태가 변경되거나 player가 준비되면 속도 설정
             useEffect(() => {
@@ -366,23 +387,34 @@
                 return () => clearInterval(intervalRef.current);
             }, [player, isSyncEnabled, timeIndex]);
 
+            // *** 스크롤 로직 수정 ***
             useEffect(() => {
                 if (activeScriptLine && isSyncEnabled) {
                     const lineElement = scriptLineRefs.current[activeScriptLine];
-                    const scriptWrapper = scriptWrapperRef.current; // 스크롤 컨테이너 ref 가져오기
+                    const scriptWrapper = scriptWrapperRef.current; 
 
                     if (lineElement && scriptWrapper) {
-                        // 기존 window.scrollBy 로직을 대체합니다.
-                        
-                        // 스크롤할 위치 계산
                         const wrapperHeight = scriptWrapper.clientHeight; // 컨테이너의 보이는 높이
                         const lineTop = lineElement.offsetTop; // 스크롤 컨테이너 콘텐츠 기준 라인의 상단 위치
                         const lineHeight = lineElement.offsetHeight; // 라인의 높이
+                        
+                        // 스크롤 컨테이너의 총 스크롤 가능 높이
+                        const maxScrollTop = scriptWrapper.scrollHeight - wrapperHeight;
 
-                        // 라인 요소의 중앙이 컨테이너의 중앙에 오도록 목표 스크롤 위치 계산
-                        const targetScrollTop = lineTop - (wrapperHeight / 2) + (lineHeight / 2);
+                        // 1. 라인 요소의 중앙이 컨테이너의 중앙에 오도록 목표 스크롤 위치 계산
+                        //    이것이 요청하신 "스크립트 랩퍼의 가운데 지점"입니다.
+                        let targetScrollTop = lineTop - (wrapperHeight / 2) + (lineHeight / 2);
 
-                        // window가 아닌 scriptWrapper를 스크롤합니다.
+                        // 2. 랩퍼의 끝 부분(최대 스크롤)을 넘지 않도록 목표 위치를 제한
+                        if (targetScrollTop > maxScrollTop) {
+                            targetScrollTop = maxScrollTop;
+                        }
+                        // 3. 스크롤 위치가 0보다 작은 경우 0으로 설정
+                        if (targetScrollTop < 0) {
+                            targetScrollTop = 0;
+                        }
+                        
+                        // 4. 계산된 위치로 스크롤
                         scriptWrapper.scrollTo({
                             top: targetScrollTop,
                             behavior: 'smooth'
@@ -421,8 +453,10 @@
                 // useEffect [player, playbackRate]가 플레이어 속도를 업데이트합니다.
             };
 
+            // *** 단어 호버 핸들러 (팝업 고정 로직 추가)
             const handleWordHover = useCallback((e, baseForm) => {
                 e.stopPropagation();
+                if (pinnedWordData) return; // *** 팝업이 고정되어 있으면 호버 무시
                 if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
 
                 const wordData = vocabMap.get(baseForm);
@@ -447,14 +481,55 @@
                         vocabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
                 }
-            }, [vocabMap]);
+            }, [vocabMap, pinnedWordData]); // *** pinnedWordData 의존성 추가
 
+            // *** 단어 호버 해제 핸들러 (팝업 고정 로직 추가)
             const handleWordLeave = useCallback(() => {
+                if (pinnedWordData) return; // *** 팝업이 고정되어 있으면 무시
                 hoverTimeoutRef.current = setTimeout(() => {
                     setHoverPopupData(null);
                     setHighlightedVocab(null);
                 }, 200);
-            }, []);
+            }, [pinnedWordData]); // *** pinnedWordData 의존성 추가
+
+            // *** 단어 클릭 핸들러 (팝업 고정/해제)
+            const handleWordClick = useCallback((e, baseForm) => {
+                e.stopPropagation(); // 전역 클릭 리스너가 바로 실행되는 것을 방지
+                const wordData = vocabMap.get(baseForm);
+                if (!wordData) return;
+
+                // 이미 고정된 단어를 다시 클릭한 경우, 고정 해제
+                if (pinnedWordData && pinnedWordData.data.term === wordData.term) {
+                    setPinnedWordData(null);
+                    setHoverPopupData(null); // 호버 데이터도 초기화
+                    setHighlightedVocab(null);
+                } else {
+                    // 새 단어를 클릭하여 고정
+                    const rect = e.target.getBoundingClientRect();
+                    let x = rect.left;
+                    let y = rect.bottom + 5;
+                    const tooltipWidth = 320;
+                    if (x + tooltipWidth > window.innerWidth) {
+                        x = rect.right - tooltipWidth;
+                        if (x < 0) x = 10;
+                    }
+                    const tooltipHeight = 200; // Approximate height
+                    if (y + tooltipHeight > window.innerHeight + window.scrollY) {
+                        y = rect.top - tooltipHeight - 5;
+                    }
+                    
+                    const newData = { data: wordData, position: { x, y } };
+                    setPinnedWordData(newData); // 이 단어를 고정
+                    setHoverPopupData(null); // 호버 팝업은 숨김
+                    setHighlightedVocab(wordData.term);
+
+                    // 어휘 목록 스크롤
+                    const vocabElement = vocabRefs.current[wordData.term];
+                    if (vocabElement) {
+                        vocabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }, [vocabMap, pinnedWordData]);
 
             const toggleTranslation = (lineId) => {
                 setTranslationsVisible(prev => ({ ...prev, [lineId]: !prev[lineId] }));
@@ -462,9 +537,16 @@
 
             return (
                 <div className="video-materials-content md:flex md:flex-row md:gap-6">
-                    {hoverPopupData && <HoverTooltip data={hoverPopupData.data} position={hoverPopupData.position} />}
-                    <div ref={playerContainerRef} className="video-wrapper md:w-[41%] md:sticky top-0 z-40 bg-gray-50 py-4 no-print">
-                        <div className={`w-full rounded-xl shadow-lg border-4 border-white overflow-hidden transition-all duration-300 ease-in-out aspect-[9/16]`}>
+                    {/* *** 툴팁 렌더링 로직: 고정된 팝업을 우선으로 보여줌 */}
+                    {(pinnedWordData || hoverPopupData) && (
+                        <HoverTooltip 
+                            data={(pinnedWordData || hoverPopupData).data} 
+                            position={(pinnedWordData || hoverPopupData).position} 
+                        />
+                    )}
+                    {/* --- 비디오 플레이어 --- */}
+                    <div ref={playerContainerRef} className="video-wrapper md:w-[41%] md:sticky top-8 z-40 bg-gray-50 py-4 no-print md:h-[calc(100vh-18rem)]">
+                        <div className={`w-full rounded-xl shadow-lg border-4 border-white overflow-hidden transition-all duration-300 ease-in-out h-full`}>
                             <div id="youtube-player" className="w-full h-full"></div>
                         </div>
                         <div className="mt-4 flex flex-row justify-between items-center gap-4">
@@ -481,7 +563,7 @@
                                 <span className="text-xs font-medium text-gray-900">Speed</span>
                                 <input
                                     type="range"
-                                    min="0.70"
+                                    min="0.60" // *** 최저 속도 0.60x로 변경
                                     max="1.20"
                                     step="0.01"
                                     value={playbackRate}
@@ -493,7 +575,8 @@
                             </div>
                         </div>
                     </div>
-                    <div className="script-wrapper md:w-[59%] md:max-h-[calc(100vh-4rem)] md:overflow-y-auto" ref={scriptWrapperRef}>
+                    {/* --- 스크립트 패널 --- */}
+                    <div className="script-wrapper md:w-[59%] md:h-[calc(100vh-18rem)] md:overflow-y-auto relative" ref={scriptWrapperRef}>
                         <main className="flex-grow">
                             <div className="space-y-6">
                                 {scriptContent.map(line => {
@@ -505,7 +588,15 @@
                                             <div key={line.id} ref={el => scriptLineRefs.current[line.id] = el}
                                                 className={`p-3 my-2 rounded-lg transition-colors duration-300 ${isActive ? 'bg-yellow-100' : ''}`}>
                                                 <p className="whitespace-pre-wrap text-lg text-gray-800">
-                                                    <HighlightedText text={line.kor} highlightData={highlightData} onWordHover={handleWordHover} onWordLeave={handleWordLeave} lineId={line.id} activeWordId={activeWordId} />
+                                                    <HighlightedText 
+                                                        text={line.kor} 
+                                                        highlightData={highlightData} 
+                                                        onWordHover={handleWordHover} 
+                                                        onWordLeave={handleWordLeave} 
+                                                        onWordClick={handleWordClick} // *** 클릭 핸들러 전달
+                                                        lineId={line.id} 
+                                                        activeWordId={activeWordId} 
+                                                    />
                                                 </p>
                                                 {translationsVisible[line.id] && hasTranslation && (
                                                     <p className="text-gray-600 text-base mt-2">{line.eng}</p>
@@ -538,7 +629,15 @@
                                                 <p className={`${speakerNameClasses} ${isYuna ? 'self-start' : 'self-end'}`}>{line.speaker}</p>
                                                 <div className={bubbleClasses}>
                                                     <p className="whitespace-pre-wrap text-lg text-gray-800">
-                                                        <HighlightedText text={line.kor} highlightData={highlightData} onWordHover={handleWordHover} onWordLeave={handleWordLeave} lineId={line.id} activeWordId={activeWordId} />
+                                                        <HighlightedText 
+                                                            text={line.kor} 
+                                                            highlightData={highlightData} 
+                                                            onWordHover={handleWordHover} 
+                                                            onWordLeave={handleWordLeave} 
+                                                            onWordClick={handleWordClick} // *** 클릭 핸들러 전달
+                                                            lineId={line.id} 
+                                                            activeWordId={activeWordId} 
+                                                        />
                                                     </p>
                                                 </div>
                                                 <div className={`w-full flex flex-col ${isYuna ? 'items-start' : 'items-end'}`}>
@@ -564,10 +663,6 @@
                                 })}
                             </div>
                         </main>
-                        {/* REMOVED: The <aside className="vocab-sidebar ..."> block 
-                            which contained the vocabulary list and toggle buttons 
-                            has been completely removed from this component.
-                        */}
                     </div>
                 </div>
             )
@@ -754,6 +849,7 @@
                                     {q.vocab.map((v, i) => (
                                         <div key={i} className="pl-4 border-l-2 border-gray-200 py-2">
                                             <p className="font-semibold text-green-700 text-lg">{v.term}: <span className="font-medium text-gray-700 text-base">{v.meaning_eng}</span></p>
+                                            {/* '대화 속에서 살펴보기' 섹션이 여기서 삭제되었습니다. */}
                                         </div>
                                     ))}
                                 </div>
@@ -782,8 +878,9 @@
                         <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                             {tabs.map((tab, index) => (
                                 <button
-                                    key={tab.name} onClick={() => setActiveTab(index)}
-                                    className={`${ index === activeTab ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm sm:text-base transition-colors flex items-center gap-2`}
+                                    key={tab.id} // *** 고유 ID 사용
+                                    onClick={() => setActiveTab(index)}
+                                    className={`${ index === activeTab ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
                                 >{tab.icon} {tab.name}</button>
                             ))}
                         </nav>
@@ -931,8 +1028,8 @@
 
             const tabs = useMemo(() => {
                 const baseTabs = [
-                    { name: '대화 스크립트 (Transcript)', icon: <Video className="w-6 h-6"/>, content: <VideoMaterialsTab scriptContent={scriptContent} vocabAndGrammarList={vocabAndGrammarList} highlightData={highlightData} vocabMap={vocabMap} /> },
-                    { name: '핵심 어휘 (Key Vocabulary)', icon: <List className="w-6 h-6"/>, content: (
+                    { id: 'script', name: <><span className="sm:text-base">대화 스크립트</span><span className="text-xs sm:text-sm text-gray-400 ml-1">(Transcript)</span></>, icon: <Video className="w-5 h-5"/>, content: <VideoMaterialsTab scriptContent={scriptContent} vocabAndGrammarList={vocabAndGrammarList} highlightData={highlightData} vocabMap={vocabMap} /> },
+                    { id: 'vocab', name: <><span className="sm:text-base">핵심 어휘</span><span className="text-xs sm:text-sm text-gray-400 ml-1">(Key Vocabulary)</span></>, icon: <List className="w-5 h-5"/>, content: (
                         <div>
                             <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><List className="w-8 h-8 text-green-600"/> 핵심 어휘 (Key Vocabulary)</h2>
                             <div className="w-full overflow-y-auto" style={{maxHeight: `calc(100vh - 150px)`}}>
@@ -942,13 +1039,13 @@
                             </div>
                         </div>
                     )},
-                    { name: '내용 확인 퀴즈 (Comprehension Check-Up)', icon: <BookOpen className="w-6 h-6"/>, content: (
+                    { id: 'quiz', name: <><span className="sm:text-base">내용 확인 퀴즈</span><span className="text-xs sm:text-sm text-gray-400 ml-1">(Comprehension Check-Up)</span></>, icon: <BookOpen className="w-5 h-5"/>, content: (
                         <div>
                             <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><BookOpen className="w-8 h-8 text-green-600"/> 내용 확인 퀴즈 (Comprehension Check-Up)</h2>
                             <ComprehensionQuiz sentences={sentences} />
                         </div>
                     )},
-                    { name: '생각해 보기 (Food For Thought)', icon: <MessageSquare className="w-6 h-6"/>, content: (
+                    { id: 'discussion', name: <><span className="sm:text-base">생각해 보기</span><span className="text-xs sm:text-sm text-gray-400 ml-1">(Food For Thought)</span></>, icon: <MessageSquare className="w-5 h-5"/>, content: (
                         <div>
                             <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><MessageSquare className="w-8 h-8 text-green-600"/> 생각해 보기 (Food For Thought)</h2>
                             <DiscussionSection questions={discussionQuestions} />
@@ -966,7 +1063,8 @@
                             <p className="text-xl text-gray-500" style={{fontFamily: "'Nanum Gothic', sans-serif"}}>Are cannabis-infused drinks healthier than alcohol?</p>
                         </header>
                         <Tabs tabs={tabs} />
-                        {(layoutMode === 'mobile' || layoutMode === 'split') && (
+                        {/* // *** 하단 중복 어휘 목록 제거
+                        (layoutMode === 'mobile' || layoutMode === 'split') && (
                             <div className="pt-10">
                                 <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><List className="w-8 h-8 text-green-600"/> 핵심 어휘 (Key Vocabulary)</h2>
                                 <div className="w-full">
@@ -975,7 +1073,8 @@
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        )
+                        */}
                     </div>
                 </div>
             );
@@ -986,4 +1085,3 @@
     </script>
 </body>
 </html>
-
