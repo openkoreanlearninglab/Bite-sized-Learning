@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>여러분들의 원래 꿈은 무엇인가요?</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 기본 폰트 설정 */
+        body { font-family: 'Nanum Gothic', sans-serif; }
+        /* 어휘 목록 사이드바 폰트 */
+        .vocab-sidebar { font-family: 'IBM Plex Sans KR', sans-serif; }
+        /* 어휘 팝업 스타일 */
+        .vocab-popup { font-family: 'Nanum Gothic', sans-serif; z-index: 50; max-width: 320px; white-space: normal; }
+        /* 호버 툴팁 스타일 */
+        .hover-tooltip { position: fixed; z-index: 9999; background: white; border: 2px solid #22c55e; border-radius: 8px; padding: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); max-width: 320px; font-family: 'Nanum Gothic', sans-serif; animation: fadeIn 0.15s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        /* 일반 어휘 강조 스타일 */
+        .highlight-general { font-weight: 600; color: #374151; cursor: pointer; position: relative; transition: background-color 0.2s; }
+        /* 마우스 호버 또는 활성화 시 스타일 */
+        .highlight-general:hover, .active-highlight { background-color: #dcfce7; border-radius: 3px; } /* Changed to green */
+        .script-highlight { background-color: #e0f2fe; border-radius: 8px; }
+        .vocab-highlight { background-color: #dcfce7; border: 2px solid #22c55e; border-radius: 8px; }
+
+        /* --- 말풍선 스타일 --- */
+        .bubble-tail-left::after, .bubble-tail-right::after {
+            content: ""; position: absolute; bottom: 6px; width: 0px; height: 0px;
+            border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+            transition: border-color 0.3s;
+        }
+        .bubble-tail-left::after { left: -8px; }
+        .bubble-tail-right::after { right: -8px; }
+
+        /* 오른쪽: 재능마켓 운영자 (흰색) */
+        .bubble-tail-right.bubble-op::after { border-left: 8px solid #ffffff; }
+        /* 왼쪽: 여자1 (빨간색) */
+        .bubble-tail-left.bubble-f1::after { border-right: 8px solid #fee2e2; } /* bg-red-100 */
+        /* 왼쪽: 여자2 (베이지/노란색) */
+        .bubble-tail-left.bubble-f2::after { border-right: 8px solid #fef9c3; } /* bg-yellow-100 */
+        /* 왼쪽: 여자3 (파란색) */
+        .bubble-tail-left.bubble-f3::after { border-right: 8px solid #dbeafe; } /* bg-blue-100 */
+        /* 왼쪽: 남자1 (흰색) */
+        .bubble-tail-left.bubble-m1::after { border-right: 8px solid #ffffff; }
+        /* 왼쪽: 여자4 (보라색) */
+        .bubble-tail-left.bubble-f4::after { border-right: 8px solid #e9d5ff; } /* bg-purple-200 */
+        /* 왼쪽: 남자2 (갈색/호박색) */
+        .bubble-tail-left.bubble-m2::after { border-right: 8px solid #fef3c7; } /* bg-amber-100 */
+        /* 왼쪽: 기본 */
+        .bubble-tail-left.bubble-default::after { border-right: 8px solid #f3f4f6; } /* bg-gray-100 */
+
+
+        /* 활성화 시 (클릭/호버) 꼬리 색상 변경 - 초록색 */
+        .bubble-active.bubble-tail-right.bubble-op::after { border-left-color: #dcfce7; }
+        .bubble-active.bubble-tail-left.bubble-f1::after,
+        .bubble-active.bubble-tail-left.bubble-f2::after,
+        .bubble-active.bubble-tail-left.bubble-f3::after,
+        .bubble-active.bubble-tail-left.bubble-m1::after,
+        .bubble-active.bubble-tail-left.bubble-f4::after,
+        .bubble-active.bubble-tail-left.bubble-m2::after,
+        .bubble-active.bubble-tail-left.bubble-default::after {
+            border-right-color: #dcfce7;
+        }
+        
+        /* 인쇄 전용 스타일 */
+        .print-only { display: none; }
+        @media print {
+            @page { size: A4; margin: 0.75cm 1cm; }
+            .no-print { display: none !important; }
+            .print-only { display: inline-block !important; }
+            body, html { background: white !important; font-size: 9pt; }
+            .mx-auto { max-width: none !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
+            body > #root > div { padding: 0 !important; }
+            * { box-shadow: none !important; border-color: transparent !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            p, h1, h2, h3, h4, span, li { color: black !important; }
+            p, li { line-height: 1.5; }
+            header.text-center { margin-bottom: 1rem !important; }
+            .pt-10 { padding-top: 1rem !important; }
+            .mb-8 { margin-bottom: 0.4pt !important; }
+            h1, h2 { font-size: 12pt !important; margin-bottom: 15px; }
+            h3 { font-size: 12pt !important; margin-bottom: 10px; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    <script type="text/babel">
+        // --- 아이콘 컴포넌트 ---
+        const Icon = React.memo(({ children, className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
+        const Video = ({ className }) => <Icon className={className}><path d="m22 8-6 4 6 4V8Z"></path><rect width="14" height="12" x="2" y="6" rx="2" ry="2"></rect></Icon>;
+        const BookOpen = ({ className }) => <Icon className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></Icon>;
+        const MessageSquare = ({ className }) => <Icon className={className}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></Icon>;
+        const ThumbsUp = ({ className }) => <Icon className={className}><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a2 2 0 0 1 3 1.88V5Z"></path></Icon>;
+        const List = ({ className }) => <Icon className={className}><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></Icon>;
+        const Spinner = ({ className = 'w-5 h-5' }) => (
+            <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        );
+
+        // --- 공용 컴포넌트: 번역 버튼 ---
+        const TranslateButton = React.memo(({ textToTranslate }) => {
+            const { useState, useEffect, useRef, useCallback } = React;
+            const [translation, setTranslation] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [show, setShow] = useState(false);
+            const [buttonLang, setButtonLang] = useState('Translation');
+            const isMounted = useRef(true);
+
+            useEffect(() => {
+                isMounted.current = true;
+                setButtonLang('English');
+                return () => { isMounted.current = false; };
+            }, []);
+
+            const handleTranslate = useCallback(async () => {
+                if (show) { setShow(false); return; }
+                if (translation) { setShow(true); return; }
+                if (!textToTranslate.trim()) return;
+
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const targetLanguage = 'English';
+                    const prompt = `Translate the following Korean text to ${targetLanguage}. Provide only the most natural-sounding translation, without any additional explanations or quotation marks.`;
+                    const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { text: textToTranslate }] }] };
+                    // API 키는 Canvas 환경에서 자동으로 제공됩니다.
+                    const apiKey = "";
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                    const result = await response.json();
+                    if (isMounted.current && result.candidates?.[0]?.content.parts[0].text) {
+                        setTranslation(result.candidates[0].content.parts[0].text.trim());
+                        setShow(true);
+                    } else { throw new Error("Invalid API response format."); }
+                } catch (err) { if (isMounted.current) setError("번역에 실패했어요."); }
+                finally { if (isMounted.current) setIsLoading(false); }
+            }, [show, translation, textToTranslate]);
+
+            return (
+                <div className="mt-1 no-print">
+                    <button onClick={handleTranslate} disabled={isLoading} className="text-xs text-gray-500 hover:text-gray-800 font-semibold py-1 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:text-gray-300">{isLoading ? '번역 중...' : (show ? '번역 숨기기' : `번역 (${buttonLang})`)}</button>
+                    {show && translation && <p className="text-gray-600 text-base mt-2 mb-2 whitespace-pre-wrap">{translation}</p>}
+                    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+                </div>
+            );
+        });
+
+        // --- [동영상 자료] 탭 관련 컴포넌트 ---
+        const HighlightedText = React.memo(({ text, highlightData, onWordHover, onWordLeave, onWordClick, lineId, activeWordId }) => {
+            if (!text || !highlightData) return text;
+            const { regex, wordMap, sortedWords } = highlightData;
+            const parts = text.split(regex);
+            return (<>{parts.map((part, index) => {
+                if (!part) return null;
+                if (index % 2 === 0) return part;
+                const trimmedPart = part.trim();
+                const baseForm = sortedWords.find(word => {
+                    const vocabItem = wordMap.get(word);
+                    if (vocabItem.variants && vocabItem.variants.includes(trimmedPart)) return true;
+                    const cleanPart = trimmedPart.replace(/\s/g, '');
+                    const cleanWord = word.replace(/\s/g, '');
+                    if (word.endsWith('다')) return cleanPart.startsWith(cleanWord.slice(0, -1));
+                    return cleanPart.startsWith(cleanWord);
+                });
+                if (!baseForm) return part;
+                const info = wordMap.get(baseForm);
+                if (!info) return part;
+                const uniqueWordId = `${lineId}-${index}-${baseForm}`;
+                const classes = ['highlight-general', 'font-bold', activeWordId === uniqueWordId ? 'active-highlight' : ''].join(' ');
+                return <span
+                    key={index}
+                    className={classes}
+                    onMouseEnter={(e) => onWordHover(e, baseForm, lineId, index)}
+                    onMouseLeave={onWordLeave}
+                    onClick={(e) => onWordClick(e, baseForm)}
+                >{part}</span>;
+            })}</>);
+        });
+
+        const HoverTooltip = React.memo(({ data, position }) => {
+            if (!data || !position) return null;
+            return (
+                <div
+                    className="hover-tooltip"
+                    style={{ left: `${position.x}px`, top: `${position.y}px` }}
+                >
+                    <p className="font-bold text-lg text-green-700 mb-2">{data.term}</p>
+                    <p className="text-gray-700 text-base">{data.mainDef}</p>
+                    {data.subDefs && data.subDefs.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                            <ul className="space-y-1">
+                                {data.subDefs.map((sub, i) => (
+                                    <li key={i} className="text-sm">
+                                        <span className="font-semibold text-gray-600">{sub.subTerm}:</span>{' '}
+                                        <span className="text-gray-600">{sub.subDef}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            );
+        });
+
+        const VocabItem = React.memo(React.forwardRef(({ item, isHighlighted }, ref) => {
+            const { useState } = React;
+            const [showExamples, setShowExamples] = useState(false);
+
+            return (
+                <div ref={ref} className={`p-4 rounded-lg border-b ${isHighlighted ? 'vocab-highlight' : 'bg-white'}`}>
+                    <p className="font-bold text-[18px] text-green-700">{item.term}</p>
+                    <div className="pl-4 mt-2 border-l-2">
+                        <p className="text-gray-700 text-[17px]">{item.mainDef}</p>
+                        {item.subDefs && item.subDefs.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">{item.subDefs.map((sub, index) => (
+                                <div key={index} className="mt-2">
+                                    <p className="font-semibold text-[17px]">{sub.subTerm}</p>
+                                    <p className="text-gray-600 pl-2 text-[16px]">{sub.subDef}</p>
+                                </div>
+                            ))}</div>
+                        )}
+                    </div>
+                    {item.examples && item.examples.length > 0 && (
+                        <div className="mt-3 no-print">
+                            <button onClick={() => setShowExamples(!showExamples)} className="text-xs bg-green-200 hover:bg-green-300 text-gray-600 py-1 px-2 rounded-md">
+                                {showExamples ? 'Close Examples' : 'Sentence Examples'}
+                            </button>
+                            {showExamples && (
+                                <div className="mt-3 p-3 bg-green-50 rounded-lg space-y-3 text-[16px]">
+                                    {item.examples.map((ex, index) => (
+                                        <div key={index}>
+                                            <p className="font-medium text-gray-800">{ex.kor}</p>
+                                            <p className="text-gray-400 hover:text-gray-700 transition-colors">{ex.eng}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        }));
+
+        const VideoMaterialsTab = ({scriptContent, vocabAndGrammarList, highlightData, vocabMap, layoutMode}) => {
+            const { useState, useRef, useEffect, useCallback, useLayoutEffect } = React;
+            const [activeWordId, setActiveWordId] = useState(null);
+            const [hoverPopupData, setHoverPopupData] = useState(null);
+            const [highlightedVocab, setHighlightedVocab] = useState(null);
+            const [translationsVisible, setTranslationsVisible] = useState({});
+            const [pinnedWordData, setPinnedWordData] = useState(null);
+
+            const vocabRefs = useRef({});
+            const hoverTimeoutRef = useRef(null);
+            const scriptWrapperRef = useRef(null);
+            const videoBoxRef = useRef(null); // 동영상 박스 ref 추가
+
+            // layoutMode가 변경되거나 창 크기가 조절될 때 스크립트 래퍼의 높이를 동적으로 조절
+            useLayoutEffect(() => {
+                const setScriptHeight = () => {
+                    // 'mobile' 모드에서는 높이 조절 로직을 실행하지 않음
+                    if (layoutMode === 'mobile') {
+                        if (scriptWrapperRef.current) {
+                            scriptWrapperRef.current.style.height = ''; // 인라인 스타일 제거
+                            scriptWrapperRef.current.classList.remove('overflow-y-auto', 'h-[calc(100vh-18rem)]');
+                            scriptWrapperRef.current.classList.remove('md:overflow-y-auto', 'md:h-[calc(100vh-18rem)]'); // 중복 제거
+                        }
+                        return;
+                    }
+
+                    // 'mobile'이 아닌 모드 (split, small, medium, large)
+                    if (layoutMode === 'split') {
+                        // 'split' 모드: 비디오 높이에 스크립트 높이를 맞춤
+                        if (videoBoxRef.current && scriptWrapperRef.current) {
+                            const videoHeight = videoBoxRef.current.offsetHeight;
+                            scriptWrapperRef.current.style.height = `${videoHeight}px`; // 비디오 높이와 동일하게 설정
+                            scriptWrapperRef.current.classList.add('overflow-y-auto');
+                            scriptWrapperRef.current.classList.remove('h-[calc(100vh-18rem)]');
+                            scriptWrapperRef.current.classList.remove('md:h-[calc(100vh-18rem)]');
+                        }
+                    } else {
+                        // 다른 모드 (small, medium, large): 기존 vh 기반 높이 사용
+                        if (scriptWrapperRef.current) {
+                            scriptWrapperRef.current.style.height = ''; // 인라인 스타일 제거
+                            scriptWrapperRef.current.classList.add('overflow-y-auto', 'h-[calc(100vh-18rem)]');
+                            scriptWrapperRef.current.classList.remove('md:overflow-y-auto', 'md:h-[calc(100vh-18rem)]'); // 중복 제거
+                        }
+                    }
+                };
+
+                setScriptHeight(); // 컴포넌트 마운트 및 layoutMode 변경 시 실행
+                
+                // 창 크기 조절 시 높이 재계산
+                window.addEventListener('resize', setScriptHeight);
+                return () => window.removeEventListener('resize', setScriptHeight);
+            }, [layoutMode, videoBoxRef, scriptWrapperRef]); // 의존성 배열에 layoutMode 추가
+
+            useEffect(() => {
+                const handleGlobalClick = (e) => {
+                    if (pinnedWordData && !e.target.closest('.highlight-general')) {
+                        setPinnedWordData(null);
+                        setHighlightedVocab(null);
+                    }
+                };
+                
+                document.addEventListener('click', handleGlobalClick);
+                return () => {
+                    document.removeEventListener('click', handleGlobalClick);
+                };
+            }, [pinnedWordData]);
+
+            const handleWordHover = useCallback((e, baseForm) => {
+                e.stopPropagation();
+                if (pinnedWordData) return;
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+
+                const wordData = vocabMap.get(baseForm);
+                if (wordData) {
+                    const rect = e.target.getBoundingClientRect();
+                    let x = rect.left;
+                    let y = rect.bottom + 5;
+                    const tooltipWidth = 320;
+                    if (x + tooltipWidth > window.innerWidth) {
+                        x = rect.right - tooltipWidth;
+                        if (x < 0) x = 10;
+                    }
+                    const tooltipHeight = 200;
+                    if (y + tooltipHeight > window.innerHeight + window.scrollY) {
+                        y = rect.top - tooltipHeight - 5;
+                    }
+                    setHoverPopupData({ data: wordData, position: { x, y } });
+                    setHighlightedVocab(wordData.term);
+
+                    const vocabElement = vocabRefs.current[wordData.term];
+                    if (vocabElement) {
+                        vocabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }, [vocabMap, pinnedWordData]);
+
+            const handleWordLeave = useCallback(() => {
+                if (pinnedWordData) return;
+                hoverTimeoutRef.current = setTimeout(() => {
+                    setHoverPopupData(null);
+                    setHighlightedVocab(null);
+                }, 200);
+            }, [pinnedWordData]);
+
+            const handleWordClick = useCallback((e, baseForm) => {
+                e.stopPropagation();
+                const wordData = vocabMap.get(baseForm);
+                if (!wordData) return;
+
+                if (pinnedWordData && pinnedWordData.data.term === wordData.term) {
+                    setPinnedWordData(null);
+                    setHoverPopupData(null);
+                    setHighlightedVocab(null);
+                } else {
+                    const rect = e.target.getBoundingClientRect();
+                    let x = rect.left;
+                    let y = rect.bottom + 5;
+                    const tooltipWidth = 320;
+                    if (x + tooltipWidth > window.innerWidth) {
+                        x = rect.right - tooltipWidth;
+                        if (x < 0) x = 10;
+                    }
+                    const tooltipHeight = 200;
+                    if (y + tooltipHeight > window.innerHeight + window.scrollY) {
+                        y = rect.top - tooltipHeight - 5;
+                    }
+                    
+                    const newData = { data: wordData, position: { x, y } };
+                    setPinnedWordData(newData);
+                    setHoverPopupData(null);
+                    setHighlightedVocab(wordData.term);
+
+                    const vocabElement = vocabRefs.current[wordData.term];
+                    if (vocabElement) {
+                        vocabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }, [vocabMap, pinnedWordData]);
+
+            const toggleTranslation = (lineId) => {
+                setTranslationsVisible(prev => ({ ...prev, [lineId]: !prev[lineId] }));
+            };
+
+            const getSpeakerStyles = (speaker) => {
+                switch (speaker) {
+                    case '재능마켓 운영자':
+                        return { bubbleClass: 'bg-white text-black', tailClass: 'bubble-tail-right bubble-op' };
+                    case '여자1':
+                        return { bubbleClass: 'bg-red-100 text-black', tailClass: 'bubble-tail-left bubble-f1' };
+                    case '여자2':
+                        return { bubbleClass: 'bg-yellow-100 text-black', tailClass: 'bubble-tail-left bubble-f2' };
+                    case '여자3':
+                        return { bubbleClass: 'bg-blue-100 text-black', tailClass: 'bubble-tail-left bubble-f3' };
+                    case '남자1':
+                        return { bubbleClass: 'bg-white text-black', tailClass: 'bubble-tail-left bubble-m1' };
+                    case '여자4':
+                        return { bubbleClass: 'bg-purple-200 text-black', tailClass: 'bubble-tail-left bubble-f4' }; // Using 200 for better color
+                    case '남자2':
+                        return { bubbleClass: 'bg-amber-100 text-black', tailClass: 'bubble-tail-left bubble-m2' };
+                    default:
+                        return { bubbleClass: 'bg-gray-100 text-black', tailClass: 'bubble-tail-left bubble-default' };
+                }
+            };
+
+            return (
+                <div className={`video-materials-content ${layoutMode !== 'mobile' ? 'flex flex-row gap-6' : ''}`}>
+                    {(pinnedWordData || hoverPopupData) && (
+                        <HoverTooltip 
+                            data={(pinnedWordData || hoverPopupData).data} 
+                            position={(pinnedWordData || hoverPopupData).position} 
+                        />
+                    )}
+                    {/* --- Instagram 플레이어 --- */}
+                    <div className={`video-wrapper ${layoutMode !== 'mobile' ? 'sticky top-8 z-40 bg-gray-50 py-4 no-print' : 'py-4 no-print'} ${layoutMode === 'split' ? 'w-[40%]' : (layoutMode !== 'mobile' ? 'w-[41%]' : 'w-full')} ${layoutMode !== 'split' && layoutMode !== 'mobile' ? 'h-[calc(100vh-18rem)]' : ''}`}>
+                        <div 
+                            className="w-full rounded-xl shadow-lg border-4 border-white overflow-hidden transition-all duration-300 ease-in-out relative" 
+                            style={{ aspectRatio: '9 / 16' }}
+                            ref={videoBoxRef} // ref 할당
+                        >
+                            <iframe 
+                                className="absolute top-0 left-0 w-full h-full"
+                                src="https://www.instagram.com/reel/DQ4UIBHEqwE/embed"
+                                width="100%"
+                                height="100%"
+                                frameBorder="0"
+                                scrolling="no"
+                                allowtransparency="true"
+                            ></iframe>
+                        </div>
+                        {/*
+                        <div className="mt-4 p-4 bg-white rounded-lg shadow-md border">
+                            <p className="text-sm text-gray-600">
+                                <strong className="text-gray-900">참고:</strong> Instagram 동영상은 자동 동기화 및 재생 속도 조절 기능이 지원되지 않습니다.
+                            </p>
+                        </div>
+                        */}
+                    </div>
+                    {/* --- 스크립트 패널 --- */}
+                    <div className={`script-wrapper ${layoutMode === 'split' ? 'w-[60%]' : (layoutMode !== 'mobile' ? 'w-[59%]' : 'w-full')} relative py-4`} ref={scriptWrapperRef}>
+                        <main className="flex-grow">
+                            <div className="space-y-6">
+                                {scriptContent.map(line => {
+                                    const hasTranslation = !!line.eng;
+
+                                    if (line.kor.startsWith('•')) {
+                                        return (
+                                            <div key={line.id} className="p-3 my-2 rounded-lg">
+                                                <p className="whitespace-pre-wrap text-xl font-semibold text-gray-800 text-center">
+                                                    <HighlightedText 
+                                                        text={line.kor} 
+                                                        highlightData={highlightData} 
+                                                        onWordHover={handleWordHover} 
+                                                        onWordLeave={handleWordLeave} 
+                                                        onWordClick={handleWordClick}
+                                                        lineId={line.id} 
+                                                        activeWordId={activeWordId} 
+                                                    />
+                                                </p>
+                                                {translationsVisible[line.id] && hasTranslation && (
+                                                    <p className="text-gray-600 text-base mt-2 text-center">{line.eng}</p>
+                                                )}
+                                                <div className="flex items-center justify-center gap-2 mt-2 no-print">
+                                                    {hasTranslation && (
+                                                        <button onClick={() => toggleTranslation(line.id)} className="text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition">
+                                                            {translationsVisible[line.id] ? 'Hide translation' : 'Translation'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    const isLeftAligned = line.speaker !== '재능마켓 운영자';
+                                    const { bubbleClass, tailClass } = getSpeakerStyles(line.speaker);
+                                    const bubbleWrapperClasses = `flex flex-col max-w-[100%] sm:max-w-[100%] ${isLeftAligned ? 'items-start ml-3' : 'items-end self-end mr-3'}`;
+                                    const bubbleBaseClasses = 'relative px-5 py-3 rounded-2xl shadow-md transition-colors duration-300';
+                                    const bubbleClasses = `${bubbleBaseClasses} ${bubbleClass} ${tailClass}`;
+                                    const speakerNameClasses = `font-bold mb-1 text-black`;
+
+                                    return (
+                                        <div key={line.id} className="flex flex-col w-full">
+                                            <div className={bubbleWrapperClasses}>
+                                                <p className={`${speakerNameClasses} ${isLeftAligned ? 'self-start' : 'self-end'}`}>{line.speaker}</p>
+                                                <div className={bubbleClasses}>
+                                                    <p className="whitespace-pre-wrap text-lg">
+                                                        <HighlightedText 
+                                                            text={line.kor} 
+                                                            highlightData={highlightData} 
+                                                            onWordHover={handleWordHover} 
+                                                            onWordLeave={handleWordLeave} 
+                                                            onWordClick={handleWordClick}
+                                                            lineId={line.id} 
+                                                            activeWordId={activeWordId} 
+                                                        />
+                                                    </p>
+                                                </div>
+                                                <div className={`w-full flex flex-col ${isLeftAligned ? 'items-start' : 'items-end'}`}>
+                                                    {translationsVisible[line.id] && hasTranslation && (
+                                                        <p className="text-gray-500 text-base mt-2 px-2">{line.eng}</p>
+                                                    )}
+                                                    <div className="flex items-center gap-2 mt-2 px-2 no-print">
+                                                        {hasTranslation && (
+                                                            <button onClick={() => toggleTranslation(line.id)} className="text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition">
+                                                                {translationsVisible[line.id] ? 'Hide translation' : 'Translation'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            )
+        }
+
+        // --- [퀴즈&토론] 탭 관련 컴포넌트 ---
+        const ComprehensionQuiz = ({ sentences }) => {
+            const { useState, useMemo } = React;
+            const [selectedWords, setSelectedWords] = useState({});
+            const [results, setResults] = useState({});
+            const [translationsVisible, setTranslationsVisible] = useState({});
+            const [hintsVisible, setHintsVisible] = useState({});
+
+            const shuffledSentences = useMemo(() => {
+                const shuffleArray = (array) => {
+                    const newArray = [...array];
+                    for (let i = newArray.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+                    }
+                    return newArray;
+                };
+                return sentences.map(sentence => ({ ...sentence, bank: shuffleArray(sentence.bank) }));
+            }, [sentences]);
+
+            const handleWordSelect = (id, word) => {
+                setSelectedWords(prev => ({...prev, [id]: word}));
+                const isCorrect = sentences.find(s => s.id === id).answer === word;
+                setResults(prev => ({...prev, [id]: isCorrect}));
+                setHintsVisible(prev => ({ ...prev, [id]: false }));
+            };
+            const handleToggleTranslation = (id) => { setTranslationsVisible(prev => ({...prev, [id]: !prev[id]})); };
+            const handleToggleHint = (id) => { if (results[id] !== true) setHintsVisible(prev => ({...prev, [id]: !prev[id]})); };
+
+            return (
+                <div className="space-y-8">
+                    {shuffledSentences.map((s, index) => (
+                        <div key={s.id} className="p-6 border rounded-xl bg-white shadow-lg transition-all duration-300">
+                            <p className="text-gray-700 font-bold text-lg mb-4">{index + 1}. 다음 빈칸에 알맞은 말을 고르세요. (Choose the correct word for the blank.)</p>
+                            <div className="p-4 bg-gray-100 rounded-lg text-left mb-3 text-gray-900 text-xl font-bold">
+                                {s.parts[0]}
+                                <span className="inline-block bg-yellow-200 text-green-800 px-3 py-1 rounded-md font-extrabold mx-2">
+                                    {hintsVisible[s.id] ? `[ ${s.eng_hint} ]` : (selectedWords[s.id] || '___')}
+                                </span>
+                                {s.parts[1]}
+                                {results[s.id] === true && <span className="inline-block ml-2 text-green-500">✓</span>}
+                                {results[s.id] === false && <span className="inline-block ml-2 text-red-500">✗</span>}
+                            </div>
+                            {translationsVisible[s.id] && (
+                                <div className="text-gray-600 italic p-3 bg-gray-50 rounded-lg text-left mt-2 text-base">
+                                    {results[s.id] ? (<span>{s.eng_parts[0]}<strong className="text-green-600">{s.eng_answer}</strong>{s.eng_parts[1]}</span>)
+                                    : (<span>{s.eng_parts[0]}<span className="font-bold">___</span>{s.eng_parts[1]}</span>)}
+                                </div>
+                            )}
+                            <div className="text-left mb-4 flex gap-2">
+                                <button onClick={() => handleToggleHint(s.id)} className="text-xs bg-yellow-200 hover:bg-yellow-300 text-yellow-800 font-bold py-1 px-3 rounded-full transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled={results[s.id] === true}>힌트 (Hint)</button>
+                                <button onClick={() => handleToggleTranslation(s.id)} className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-3 rounded-full transition duration-200">번역 (Translation)</button>
+                            </div>
+                            <div className="flex justify-start flex-wrap gap-3">
+                                {s.bank.map(word => (
+                                    <button
+                                        key={word}
+                                        onClick={() => handleWordSelect(s.id, word)}
+                                        className={`px-4 py-2 rounded-lg text-lg font-bold transition-all transform hover:scale-105 shadow-md ${selectedWords[s.id] === word ? (results[s.id] ? 'bg-green-500 text-white ring-2 ring-opacity-50 ring-green-400' : 'bg-red-500 text-white ring-2 ring-red-300') : 'bg-white text-gray-800 hover:bg-gray-100 border'}`}
+                                    >{word}</button>
+                                ))}
+                            </div>
+                            {results[s.id] !== undefined && (
+                                <div className={`mt-4 p-4 border-l-4 rounded-r-lg ${results[s.id] ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}>
+                                    <p className={`font-bold ${results[s.id] ? 'text-green-800' : 'text-red-800'} flex items-center gap-2 text-lg`}>{results[s.id] ? 'Correct!' : 'Try again.'}</p>
+                                    <p className="mt-2 text-gray-700 text-base italic">{results[s.id] ? s.eng_explanation : s.eng_wrongAnswerExplanations[selectedWords[s.id]]}</p>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const SentenceChecker = ({ value, onChange, placeholder, question }) => {
+            const { useState } = React;
+            const [feedback, setFeedback] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+
+            const checkSentence = async () => {
+                if (!value || value.trim() === '') {
+                    setError("문장을 입력해야 피드백을 받을 수 있어요.");
+                    setFeedback(null); return;
+                }
+                setIsLoading(true); setError(null); setFeedback(null);
+                const prompt = `You are an advanced Korean language tutor AI for B1-C2 level learners. Analyze the user's sentence in response to a specific question. The user's answer is in Korean. Your entire response MUST be a JSON object, with all string values in Korean (ending in -요) and English.\n\nQuestion: "${question}"\nUser's Answer: "${value}"\n\nYour response MUST be a JSON object with the specified schema.`;
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: { type: "OBJECT", properties: { "is_relevant": { "type": "BOOLEAN" }, "relevance_feedback_kor": { "type": "STRING", "nullable": true }, "relevance_feedback_eng": { "type": "STRING", "nullable": true }, "is_correct": { "type": "BOOLEAN", "nullable": true }, "feedback_message_kor": { "type": "STRING", "nullable": true }, "feedback_message_eng": { "type": "STRING", "nullable": true }, "corrected_sentence": { "type": "STRING", "nullable": true }, "explanation_kor": { "type": "STRING", "nullable": true }, "explanation_eng": { "type": "STRING", "nullable": true }, "alternative_expressions": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "expression_kor": { "type": "STRING" }, "expression_eng": { "type": "STRING" } }, "required": ["expression_kor", "expression_eng"] } } }, "required": ["is_relevant"] }
+                    }
+                };
+                // API 키는 Canvas 환경에서 자동으로 제공됩니다.
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                try {
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0 && result.candidates[0].content.parts[0].text) {
+                        try {
+                            const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
+                            setFeedback(parsedJson);
+                        } catch (parseError) {
+                            console.error("Error parsing JSON response:", parseError, result.candidates[0].content.parts[0].text);
+                            setError("AI의 응답 형식이 올바르지 않아 처리할 수 없어요.");
+                        }
+                    } else {
+                        console.error("Invalid API response structure:", result);
+                        setError("AI의 응답을 처리하는 데 문제가 발생했어요.");
+                    }
+                } catch (err) {
+                    console.error("Error checking sentence:", err);
+                    setError("문장 검사에 실패했어요. 네트워크 연결을 확인하거나 잠시 후 다시 시도해 주세요.");
+                }
+                finally { setIsLoading(false); }
+            };
+
+            const renderFeedbackSection = (title, content) => (content && content.length > 0 && (
+                <div>
+                    <p className="text-gray-800 font-bold text-[17px]">{title}</p>
+                    {Array.isArray(content) ? (
+                        <ul className="list-disc list-inside space-y-2 mt-1">
+                            {content.map((item, index) => (
+                                <li key={index} className="text-gray-600 text-[16px]">
+                                    <p className="font-medium">{item.expression_kor || item.sentence_kor}</p>
+                                    <p className="text-gray-500 italic text-sm">{item.expression_eng || item.sentence_eng}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (<p className="text-gray-700 font-medium text-[18px]">{content}</p>)}
+                </div>
+            ));
+
+            return (
+                <div>
+                    <textarea className="w-full p-3 border rounded-md focus:ring-2 focus:ring-green-400 transition text-lg" rows="3" placeholder={placeholder} value={value} onChange={onChange} />
+                    <button onClick={checkSentence} disabled={isLoading} className="mt-3 flex items-center justify-center gap-2 bg-green-200 text-gray-900 py-2 px-4 rounded-md transition-colors hover:bg-green-300 disabled:opacity-50 disabled:cursor-wait font-semibold text-[14px]">
+                        {isLoading ? <Spinner className="w-5 h-5" /> : '✨'} {isLoading ? '피드백 생성 중...' : 'AI에게 피드백 받기'}
+                    </button>
+                    {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+                    {feedback && (
+                        <div className="mt-4 p-4 bg-green-50 border-l-4 border-green-100 rounded-r-lg space-y-4">
+                            {!feedback.is_relevant && ( <div><p className="font-bold text-red-800 flex items-center gap-2 text-lg">{feedback.relevance_feedback_kor}</p><p className="text-gray-600 italic">{feedback.relevance_feedback_eng}</p></div> )}
+                            {feedback.is_relevant && feedback.is_correct && ( <div><p className="font-bold text-green-800 flex items-center gap-2 text-lg"><ThumbsUp className="w-5 h-5"/> {feedback.feedback_message_kor}</p><p className="text-gray-600 italic">{feedback.feedback_message_eng}</p></div> )}
+                            {feedback.is_relevant && !feedback.is_correct && (<>
+                                {feedback.corrected_sentence && ( <div><p className="text-gray-800 font-bold text-[17px]">✨ 수정된 문장:</p><p className="text-gray-700 font-medium text-[18px]">{feedback.corrected_sentence}</p></div> )}
+                                {(feedback.explanation_kor || feedback.explanation_eng) && ( <div><p className="text-gray-800 font-bold text-[17px]">설명:</p>{feedback.explanation_kor && <p className="text-gray-600 text-[16px]">{feedback.explanation_kor}</p>}{feedback.explanation_eng && <p className="text-gray-500 italic mt-1 text-[15px]">{feedback.explanation_eng}</p>}</div> )}
+                            </>)}
+                            {feedback.alternative_expressions && feedback.alternative_expressions.length > 0 && renderFeedbackSection('💡 다른 표현:', feedback.alternative_expressions)}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const DiscussionSection = ({ questions }) => {
+            const { useState } = React;
+            const [translationsVisible, setTranslationsVisible] = useState({});
+            const [userQuestionAnswers, setUserQuestionAnswers] = useState({});
+            const toggleTranslation = (id) => { setTranslationsVisible(prev => ({ ...prev, [id]: !prev[id]})); };
+
+            return (
+                <div className="space-y-10">
+                    {questions.map((q) => (
+                        <div key={q.num} className="p-6 border rounded-xl bg-white shadow-lg">
+                            <p className="text-gray-900 text-xl font-bold">{q.num}. {q.kor}</p>
+                            {translationsVisible[`q-${q.num}`] && (<p className="whitespace-pre-wrap text-gray-600 italic mt-1 text-base">{q.eng}</p>)}
+                            <button onClick={() => toggleTranslation(`q-${q.num}`)} className="text-xs text-gray-800 bg-gray-200 hover:bg-gray-300 font-bold py-1 px-3 rounded-full transition duration-200 mt-2 mb-6">번역 (Translation)</button>
+                            {q.vocab && q.vocab.length > 0 && (
+                                <div className="mt-4 space-y-4">
+                                    <h3 className="font-bold text-lg text-gray-800">📍핵심 표현 (Essential phrases)</h3>
+                                    {q.vocab.map((v, i) => (
+                                        <div key={i} className="pl-4 border-l-2 border-gray-200 py-2">
+                                            <p className="font-semibold text-green-700 text-lg">{v.term}: <span className="font-medium text-gray-700 text-base">{v.meaning_eng}</span></p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="mt-6">
+                                <h3 className="font-bold text-lg text-gray-800 mb-2">핵심 표현을 사용해서 질문에 대답해 보세요.</h3>
+                                <SentenceChecker
+                                    value={userQuestionAnswers[`q-${q.num}`] || ''}
+                                    onChange={(e) => setUserQuestionAnswers(prev => ({...prev, [`q-${q.num}`]: e.target.value}))}
+                                    placeholder="여기에 답변을 입력하세요 (Type your response here)"
+                                    question={q.kor}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const Tabs = ({ tabs }) => {
+            const { useState, useRef, useLayoutEffect } = React;
+            const [activeTab, setActiveTab] = useState(0);
+            const [btnFontSize, setBtnFontSize] = useState(1);
+            const [btnPadding, setBtnPadding] = useState(1);
+            const [btnGap, setBtnGap] = useState(1);
+            const [btnMargin, setBtnMargin] = useState(1);
+            const [allowWrap, setAllowWrap] = useState(false);
+            const navRef = useRef(null);
+
+            useLayoutEffect(() => {
+                const adjustFontSize = () => {
+                    const nav = navRef.current;
+                    if (!nav) return;
+
+                    const baseFontSize = 14;
+                    const basePaddingPx = 4;
+                    const baseGapPx = 24;
+                    const baseMarginPx = 4;
+
+                    const minFontSizePx = 6;
+                    const minPaddingPx = 2;
+                    const minGapPx = 4;
+                    const minMarginPx = 1;
+
+                    setAllowWrap(false); 
+                    setBtnFontSize(1);   
+                    setBtnPadding(1);
+                    setBtnGap(1);
+                    setBtnMargin(1);
+
+                    setTimeout(() => {
+                        const overflows = nav.scrollWidth > nav.clientWidth;
+
+                        if (overflows) {
+                            const ratio = nav.clientWidth / nav.scrollWidth;
+                            let newFontSizePx = baseFontSize * ratio;
+                            let newPaddingPx = basePaddingPx * ratio; 
+                            let newGapPx = baseGapPx * ratio;
+                            let newMarginPx = baseMarginPx * ratio;
+
+                            if (newFontSizePx < minFontSizePx) {
+                                setBtnFontSize(minFontSizePx / baseFontSize);
+                                setBtnPadding(minPaddingPx / basePaddingPx);
+                                setBtnGap(minGapPx / baseGapPx);
+                                setBtnMargin(minMarginPx / baseMarginPx);
+                                setAllowWrap(true);
+                            } else {
+                                setBtnFontSize(newFontSizePx / baseFontSize);
+                                setBtnPadding(newPaddingPx / basePaddingPx);
+                                setBtnGap(newGapPx / baseGapPx);
+                                setBtnMargin(newMarginPx / baseMarginPx);
+                                setAllowWrap(false);
+                            }
+                        } else {
+                            setBtnFontSize(1);
+                            setBtnPadding(1);
+                            setBtnGap(1);
+                            setBtnMargin(1);
+                            setAllowWrap(false);
+                        }
+                    }, 0);
+                };
+
+                adjustFontSize();
+
+                const resizeObserver = new ResizeObserver(adjustFontSize);
+                if (navRef.current) {
+                    resizeObserver.observe(navRef.current);
+                }
+
+                return () => resizeObserver.disconnect();
+            }, [tabs, navRef]);
+
+            return (
+                <div>
+                    <div className="border-b border-gray-200 no-print">
+                        <nav 
+                            ref={navRef}
+                            className={`${allowWrap ? 'flex-wrap' : ''} -mb-px flex`} 
+                            aria-label="Tabs"
+                            style={{ gap: `${btnGap * 1.5}rem` }}
+                        >
+                            {tabs.map((tab, index) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`${ index === activeTab ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 border-b-2 font-medium text-sm transition-colors flex items-center`}
+                                    style={{ 
+                                        fontSize: `${btnFontSize}em`,
+                                        paddingLeft: `${btnPadding * 0.25}rem`,
+                                        paddingRight: `${btnPadding * 0.25}rem`,
+                                        gap: `${btnMargin * 0.25}rem`
+                                    }}
+                                >{tab.icon} {tab.name}</button>
+                            ))}
+                        </nav>
+                    </div>
+                    <div className="pt-10">{tabs[activeTab].content}</div>
+                </div>
+            );
+        };
+
+        // --- 메인 App 컴포넌트 ---
+        const App = () => {
+            const { useState, useEffect, useMemo } = React;
+            const [containerWidth, setContainerWidth] = useState('30cm');
+            const [layoutMode, setLayoutMode] = useState('large');
+
+            useEffect(() => {
+                const handleResize = () => {
+                    const heightInPx = window.innerHeight; const widthInPx = window.innerWidth;
+                    const isMobileDevice = /Mobi|Android/i.test(navigator.userAgent);
+                    const isTabletDevice = /iPad|Android(?!.*Mobi)/i.test(navigator.userAgent);
+                    const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+                    let newMode = 'large'; let newContainerWidth = '30cm';
+
+                    if ((isMobileDevice || isTabletDevice) && isPortrait) { newMode = 'mobile'; newContainerWidth = '100%'; }
+                    else {
+                        if (heightInPx < 832) { newMode = 'split'; newContainerWidth = '24cm'; } // 22cm -> 24cm로 변경
+                        else if (heightInPx < 907) { newMode = 'small'; newContainerWidth = '26cm'; } // 22cm -> 26cm로 변경
+                        else if (heightInPx < 983) { newMode = 'medium'; newContainerWidth = '28cm'; } // 24cm -> 28cm로 변경
+                        else { newMode = 'large'; newContainerWidth = '30cm'; }
+                    }
+                    setContainerWidth(newContainerWidth); setLayoutMode(newMode); document.body.dataset.layoutMode = newMode;
+                    const baseWidthPx = 30 * 37.795; let effectiveWidthPx;
+                    if (newContainerWidth === '100%') { effectiveWidthPx = widthInPx; }
+                    else { const cmValue = parseFloat(newContainerWidth); effectiveWidthPx = cmValue * 37.795; }
+                    if (newMode !== 'large') { const scale = Math.min(1.0, effectiveWidthPx / baseWidthPx); const finalScale = Math.max(0.8, scale); document.documentElement.style.fontSize = `${16 * finalScale}px`; }
+                    else { document.documentElement.style.fontSize = '16px'; }
+                };
+                window.addEventListener('resize', handleResize); handleResize();
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
+            const { scriptContent, vocabAndGrammarList, sentences, discussionQuestions } = useMemo(() => {
+                const scriptContent = [
+                    { id: 's1', speaker: '재능마켓 운영자', kor: '그 일은 본인이 원래 꿈꿨던 일인가요?', eng: "Is that the work you originally dreamed of?" },
+                    { id: 's2', speaker: '재능마켓 운영자', kor: '본인이 원래 하고 싶었던 일인가요?', eng: "Is it the work you originally wanted to do?" },
+                    { id: 's3', speaker: '재능마켓 운영자', kor: '미래에 나는 ‘내가 이런 것들을 하면서 살아가고 싶다’하는 것들이 있을까요?', eng: "In the future, are there things you think 'I want to live my life doing this'?" },
+                    { id: 's4', speaker: '재능마켓 운영자', kor: '만약에 채린 님은 지금 교사 외에 다른 걸 한 번 당장 해 보고 싶다면?', eng: "What if, Chaerin, you wanted to try something other than being a teacher right now?" },
+                    { id: 's5', speaker: '', kor: '• 여러분들의 원래 꿈은 무엇인가요?', eng: "What were your original dreams?" },
+                    { id: 's6', speaker: '여자1', kor: '저는 여행을 좋아하니까,', eng: "Since I like traveling," },
+                    { id: 's7', speaker: '여자1', kor: '여행 상품을 만들어 보고 싶기도 하고.', eng: "I'd like to try creating travel products, too." },
+                    { id: 's8', speaker: '여자2', kor: '저 글쓰기 좋아하니까 ,', eng: "Since I like writing," },
+                    { id: 's9', speaker: '여자2', kor: '글쓰기 모임이라든지,', eng: "things like a writing group," },
+                    { id: 's10', speaker: '여자2', kor: '도전하고 실험하는 이런 저의 특성을 잘 살리는 데로 가고 싶다.', eng: "I want to go in a direction that makes good use of my characteristics of challenging and experimenting." },
+                    { id: 's11', speaker: '여자3', kor: '하나를 꾸준히 하지 않았던 것 같아요.', eng: "I don't think I've consistently done one thing." },
+                    { id: 's12', speaker: '여자3', kor: '그냥 계속 바꿔서.', eng: "I just kept changing." },
+                    { id: 's13', speaker: '재능마켓 운영자', kor: '찍먹을 좋아하시는… (사람이에요?)', eng: "You like to 'dip'...? (Are you that kind of person?)" },
+                    { id: 's14', speaker: '여자3', kor: '저는 너무 찍먹파여서.', eng: "I'm very much a 'dipper'." },
+                    { id: 's15', speaker: '재능마켓 운영자', kor: '탕수육도 찍먹.', eng: "Sweet and sour pork, 'dipping' too." },
+                    { id: 's16', speaker: '여자3', kor: '너무 찍먹. 탕수육도 찍먹이에요.', eng: "So much dipping. My sweet and sour pork is 'dipping' too." },
+                    { id: 's17', speaker: '남자1', kor: '세상이 아무리 힘들어도,', eng: "No matter how hard the world is," },
+                    { id: 's18', speaker: '남자1', kor: '누군가는 청소를 해야 되고,', eng: "someone has to do the cleaning," },
+                    { id: 's19', speaker: '남자1', kor: '청소가 그 만큼 지금 인식을 계속 바꿔가고 계시잖아요.', eng: "and cleaning... you're continuously changing the perception of it that much, you know." },
+                    { id: 's20', speaker: '남자1', kor: '그런 것들을 통해서 인식이 바뀌었으니까', eng: "Since perceptions have changed through those things," },
+                    { id: 's21', speaker: '남자1', kor: '‘내가 또 다른 사람들을 바꿔줄 수 있겠다’는 생각도 있어서.', eng: "I also have the thought that 'I can change other people too'." },
+                    { id: 's22', speaker: '여자4', kor: '그냥 막 거대한 건 아닌데,', eng: "It's not something huge or anything," },
+                    { id: 's23', speaker: '여자4', kor: '그냥 소소하게 평소에 하고 싶던 거 하면서', eng: "just doing the small things I usually wanted to do" },
+                    { id: 's24', speaker: '여자4', kor: '인생을 즐기는 게 맞다고 (생각해요)', eng: "I think enjoying life is what's right." },
+                    { id: 's25', speaker: '여자4', kor: '낭만을 좋아해가지구.', eng: "because I like romance." },
+                    { id: 's26', speaker: '남자2', kor: '그래서 이제 “그냥 뭔가 해 보고 싶은 거 해 보자”.', eng: "So now, 'Let's just try something we want to do'." },
+                    { id: 's27', speaker: '남자2', kor: '이렇게 해서 시작하게 된 것 같아요.', eng: "I think that's how I got started." },
+                    { id: 's28', speaker: '', kor: '• Just do it!', eng: "Just do it!" },
+                    { id: 's29', speaker: '', kor: '• 모두를 응원합니다 -천원의 재능마켓-', eng: "Cheering for everyone - 1000 Won Talent Market-" }
+                ];
+                
+                const vocabAndGrammarList = [
+                { "term": "재능", "mainDef": "talent; ability; skill.", "subDefs": [], "variants": ["재능"] },
+                { "term": "운영자", "mainDef": "operator; manager.", "subDefs": [], "variants": ["운영자"] },
+                { "term": "본인이 원래 꿈꿨던 일", "mainDef": "The work you (yourself) originally dreamed of", "subDefs": [ { "subTerm": "• 본인", "subDef": "oneself; (you) yourself." }, { "subTerm": "• 원래", "subDef": "originally." }, { "subTerm": "• 꿈꾸다", "subDef": "to dream (of)." }, { "subTerm": "• -았던/었던", "subDef": "used to describe a past action or state that describes the following noun (retrospective); 'that (one) ...-ed'." } ], "variants": ["본인이 원래 꿈꿨던 일"] },
+                { "term": "-인가요?", "mainDef": "Is it...? (polite question)", "subDefs": [ { "subTerm": "• -(으)ㄴ가요? / -이나요?", "subDef": "A polite question ending used with descriptive verbs, 이다, or 아니다." } ], "variants": ["인가요"] },
+                { "term": "본인이 원래 하고 싶었던 일", "mainDef": "The work you (yourself) originally wanted to do.", "subDefs": [ { "subTerm": "• 본인", "subDef": "oneself; (you) yourself." }, { "subTerm": "• 원래", "subDef": "originally." }, { "subTerm": "• 하고 싶다", "subDef": "to want to do." }, { "subTerm": "• -았던/었던", "subDef": "used to describe a past action or state that describes the following noun (retrospective); 'that (one) ...-ed'." } ], "variants": ["본인이 원래 하고 싶었던 일"] },
+                { "term": "내가 이런 것들을 하면서", "mainDef": "while I do these kinds of things...", "subDefs": [ { "subTerm": "• 이런 것", "subDef": "this kind of thing." }, { "subTerm": "• -(으)면서", "subDef": "\"while (doing); as (one) does.\"; used to indicate simultaneous actions." } ], "variants": ["내가 이런 것들을 하면서"] },
+                { "term": "살아가고 싶다", "mainDef": "(I) want to live on; (I) want to go on living.", "subDefs": [ { "subTerm": "• 살아가다", "subDef": "to live on; to go on living." } ], "variants": ["살아가고 싶다"] },
+                { "term": "하는 것", "mainDef": "the thing(s) that (one) does; the act of doing.", "subDefs": [ { "subTerm": "• -는 것", "subDef": "A colloquial form of -는 것, used to nominalize verbs by turning a verb into a noun phrase meaning “the act of …,” “the fact of …,” or “the thing that …”" } ], "variants": ["하는 것", "하는 것들이"] },
+                { "term": "만약에", "mainDef": "if; in case that.", "subDefs": [], "variants": ["만약에"] },
+                { "term": "교사 외에", "mainDef": "besides (being) a teacher; other than a teacher.", "subDefs": [ { "subTerm": "• 교사", "subDef": "teacher." }, { "subTerm": "• 외에", "subDef": "besides; other than; except for." } ], "variants": ["교사 외에"] },
+                { "term": "다른 걸", "mainDef": "something else; a different thing.", "subDefs": [], "variants": ["다른 걸"] },
+                { "term": "당장", "mainDef": "right now; immediately.", "subDefs": [], "variants": ["당장"] },
+                { "term": "해 보고 싶다면", "mainDef": "if (you) want to try doing (it).", "subDefs": [ { "subTerm": "• 해 보다", "subDef": "to try doing (하다 + -아/어 보다)." }, { "subTerm": "• -고 싶다", "subDef": "\"to want to...\"" }, { "subTerm": "• -(으)면", "subDef": "\"if...\"; conditional particle." } ], "variants": ["해 보고 싶다면"] },
+                { "term": "원래", "mainDef": "originally; by nature.", "subDefs": [], "variants": ["원래"] },
+                { "term": "꿈", "mainDef": "dream.", "subDefs": [], "variants": ["꿈", "꿈은"] },
+                { "term": "좋아하니까", "mainDef": "because (I) like (it).", "subDefs": [ { "subTerm": "• -(으)니까", "subDef": "\"because...\" or \"since...\"; used to state a reason or cause." } ], "variants": ["좋아하니까"] },
+                { "term": "여행 상품", "mainDef": "travel product; tour package.", "subDefs": [], "variants": ["여행 상품", "여행 상품을"] },
+                { "term": "만들어 보고 싶기도 하고", "mainDef": "(I) also want to try making (it), and...", "subDefs": [ { "subTerm": "• -아/어 보다", "subDef": "\"to try (doing something).\"" }, { "subTerm": "• -고 싶다", "subDef": "\"to want to...\"" }, { "subTerm": "• -기도 하다", "subDef": "\"to also (do something); sometimes (do something).\"" } ], "variants": ["만들어 보고 싶기도 하고"] },
+                { "term": "글쓰기 모임이라든지", "mainDef": "(something) like a writing group, or...", "subDefs": [ { "subTerm": "• 글쓰기", "subDef": "writing." }, { "subTerm": "• 모임", "subDef": "meeting; group." }, { "subTerm": "• -(이)라든지", "subDef": "\"or (something) like...; such as...\"" } ], "variants": ["글쓰기 모임이라든지"] },
+                { "term": "도전하고 실험하는 이런 저의 특성", "mainDef": "this characteristic of mine (that is) challenging and experimenting.", "subDefs": [ { "subTerm": "• 도전하다", "subDef": "to challenge; to try." }, { "subTerm": "• 실험하다", "subDef": "to experiment." }, { "subTerm": "• -는", "subDef": "used to turn a present-tense verb into an “adjective-ish” phrase that describes the following noun" }, { "subTerm": "• 특성", "subDef": "characteristic; trait." } ], "variants": ["도전하고 실험하는 이런 저의 특성"] },
+                { "term": "잘 살리는 데로 가고 싶다", "mainDef": "(I) want to go in a direction that utilizes (it) well.", "subDefs": [ { "subTerm": "• 살리다", "subDef": "to make use of; to utilize; to bring to life." }, { "subTerm": "• -는 데", "subDef": "\"a place where...; a direction where...; the act of...\"" } ], "variants": ["잘 살리는 데로 가고 싶다"] },
+                { "term": "꾸준히 하지 않았던 것 같아요", "mainDef": "I don't think I did (it) consistently.", "subDefs": [ { "subTerm": "• 꾸준히 하다", "subDef": "to do (something) consistently." }, { "subTerm": "• -았던/-었던 것 같아요", "subDef": "\"It seems like...; I think that...\" combined with a past retrospective action." } ], "variants": ["꾸준히 하지 않았던 것 같아요"] },
+                { "term": "계속 바꿔서", "mainDef": "(I) keep changing (it), so...", "subDefs": [ { "subTerm": "• 계속", "subDef": "continuously." }, { "subTerm": "• 바꾸다", "subDef": "to change (something)." }, { "subTerm": "• -아서/어서", "subDef": "used when the first action is a necessary step for the second action to happen, or when the first action directly influences the second." } ], "variants": ["계속 바꿔서"] },
+                { "term": "찍먹을 좋아하시는", "mainDef": "(someone) who likes to 'dabble' (try various things superficially)", "subDefs": [ { "subTerm": "• 찍먹", "subDef": "(Figurative) To 'dabble' in various activities/fields superficially, as opposed to committing deeply." }, { "subTerm": "• -는", "subDef": "used to turn a present-tense verb into an “adjective-ish” phrase that describes the following noun" } ], "variants": ["찍먹을 좋아하시는"] },
+                { "term": "찍먹파여서", "mainDef": "because (I) am 'Team Dabble'.", "subDefs": [ { "subTerm": "• 찍먹파", "subDef": "'jjikmeok-pa' (Team Dabble); someone who tries many things superficially ('pa' means faction/group)." }, { "subTerm": "• -이어서/여서", "subDef": "used to connect clauses indicating cause or reason (\"because…\") (used with 이다/아니다)." } ], "variants": ["찍먹파여서"] },
+                { "term": "탕수육", "mainDef": "tangsuyuk (sweet and sour pork).", "subDefs": [], "variants": ["탕수육", "탕수육도"] },
+                { "term": "찍먹", "mainDef": "'jjikmeok' (slang: dipping food in sauce).", "subDefs": [ { "subTerm": "• (Literal)", "subDef": "The act of dipping food (like tangsuyuk) into sauce, as opposed to pouring the sauce over it (부먹)." } ], "variants": ["찍먹", "찍먹.", "찍먹이에요"] },
+                { "term": "아무리 힘들어도", "mainDef": "no matter how hard (it is).", "subDefs": [ { "subTerm": "• 아무리 -아도/어도", "subDef": "\"even if...\" or \"even though...\"; used to express concession (stronger form: \"no matter how...\")." } ], "variants": ["아무리 힘들어도"] },
+                { "term": "누군가", "mainDef": "someone; somebody.", "subDefs": [], "variants": ["누군가", "누군가는"] },
+                { "term": "그만큼", "mainDef": "that much; to that extent.", "subDefs": [], "variants": ["그만큼"] },
+                { "term": "인식을 계속 바꿔가고 계시잖아요.", "mainDef": "(you) are continuously changing the perception, you know.", "subDefs": [ { "subTerm": "• 인식", "subDef": "perception; awareness." }, { "subTerm": "• 계속", "subDef": "continuously." }, { "subTerm": "• 바꿔가다", "subDef": "to (continuously) change (something) (바꾸다 + -아/어 가다)." }, { "subTerm": "• -고 계시다", "subDef": "honorific form of -고 있다 (present progressive 'is ...-ing')." }, { "subTerm": "• -잖아요", "subDef": "used to remind the listener of shared or obvious information, or to emphasize that something is already known" } ], "variants": ["인식을 계속 바꿔가고 계시잖아요"] },
+                { "term": "그런 것들을 통해서", "mainDef": "through those kinds of things.", "subDefs": [ { "subTerm": "• 그런 것", "subDef": "that kind of thing." }, { "subTerm": "• 통해서", "subDef": "through; by way of." } ], "variants": ["그런 것들을 통해서"] },
+                { "term": "인식이 바뀌었으니까", "mainDef": "because the perception changed.", "subDefs": [ { "subTerm": "• 인식", "subDef": "perception; awareness." }, { "subTerm": "• 바뀌다", "subDef": "to be changed (passive)." }, { "subTerm": "• -(으)니까", "subDef": "\"because...\" or \"since...\"; used to state a reason or cause." } ], "variants": ["인식이 바뀌었으니까"] },
+                { "term": "바꿔줄 수 있겠다", "mainDef": "(I) think (I) can change (it) for (them).", "subDefs": [ { "subTerm": "• 바꿔 주다", "subDef": "to change (something) for (someone)." }, { "subTerm": "• -ㄹ 수 있다", "subDef": "\"can; to be able to.\"" }, { "subTerm": "• -겠다", "subDef": "used to express assumption or guess about something that seems likely, often translated as “I think … will …”" } ], "variants": ["바꿔줄 수 있겠다’는", "바꿔줄 수 있겠다"] },
+                { "term": "-는 생각도 있어서", "mainDef": "(I) also have the thought that..., so...", "subDefs": [ { "subTerm": "• -는 생각이 있다", "subDef": "to have the thought that..." }, { "subTerm": "• -아서/어서", "subDef": "used to connect clauses indicating cause or reason (\"because…\")" } ], "variants": ["’는 생각도 있어서", "는 생각도 있어서"] },
+                { "term": "막", "mainDef": "just (filler word); strongly; carelessly.", "subDefs": [], "variants": ["막"] },
+                { "term": "거대한 건", "mainDef": "a huge thing (is)...", "subDefs": [ { "subTerm": "• 거대하다", "subDef": "to be huge; giant." }, { "subTerm": "• -ㄴ/은 건", "subDef": "A colloquial form of -ㄴ/은 것은, (-(으)ㄴ: used to turn a descriptive verb... into an “adjective-ish” phrase) + (-것: used to nominalize... \"the thing that ...\")" } ], "variants": ["거대한 건"] },
+                { "term": "소소하게", "mainDef": "small (things); simple (things) (adverb).", "subDefs": [], "variants": ["소소하게"] },
+                { "term": "평소에 하고 싶던 거 하면서", "mainDef": "while doing the things (I) usually wanted to do.", "subDefs": [ { "subTerm": "• 평소에", "subDef": "usually; ordinarily." }, { "subTerm": "• -던 거", "subDef": "colloial form of -던 것; 'the thing(s) one used to do/want'." }, { "subTerm": "• -(으)면서", "subDef": "\"while (doing); as (one) does.\"" } ], "variants": ["평소에 하고 싶던 거 하면서"] },
+                { "term": "인생을 즐기는 게", "mainDef": "enjoying life (is)...", "subDefs": [ { "subTerm": "• 인생", "subDef": "life." }, { "subTerm": "• 즐기다", "subDef": "to enjoy." }, { "subTerm": "• -는 게", "subDef": "A colloquial form of -는 것, used to nominalize verbs by turning a verb into a noun phrase meaning “the act of …,” “the fact of …,” or “the thing that …”" } ], "variants": ["인생을 즐기는 게"] },
+                { "term": "맞다고 (생각해요)", "mainDef": "(I think) that (it's) right.", "subDefs": [ { "subTerm": "• -고 생각하다", "subDef": "\"to think that...\"" } ], "variants": ["맞다고 (생각해요)"] },
+                { "term": "낭만", "mainDef": "romance (in the sense of romanticism, ideals).", "subDefs": [], "variants": ["낭만", "낭만을"] },
+                { "term": "좋아해가지구.", "mainDef": "because (I) like (it) (colloial).", "subDefs": [ { "subTerm": "• -아가지구/-어가지구", "subDef": "colloial form of -아서/어서; used to connect clauses indicating cause or reason (\"because…\")." } ], "variants": ["좋아해가지구"] },
+                { "term": "뭔가 해 보고 싶은 거", "mainDef": "something (I) want to try doing.", "subDefs": [ { "subTerm": "• 해 보다", "subDef": "to try doing." }, { "subTerm": "• -고 싶다", "subDef": "\"to want to...\"" }, { "subTerm": "• -(으)ㄴ 거", "subDef": "colloial form of -(으)ㄴ 것 (-(으)ㄴ: used to turn a descriptive verb... into an “adjective-ish” phrase) + (-것: used to nominalize... \"the thing that ...\")" } ], "variants": ["뭔가 해 보고 싶은 거"] },
+                { "term": "이렇게 해서", "mainDef": "by doing this; so (lit. 'doing this and...');", "subDefs": [ { "subTerm": "• 이렇게 하다", "subDef": "to do (it) like this." } ], "variants": ["이렇게 해서"] },
+                { "term": "시작하게 된 것 같아요", "mainDef": "I think that's how (I) came to start.", "subDefs": [ { "subTerm": "• -게 되다", "subDef": "\"to come to (do); to end up (doing).\"" }, { "subTerm": "• -ㄴ/은 것 같다", "subDef": "\"seems like...\" or \"looks like...\"; used to express an assumption or guess.\"" } ], "variants": ["시작하게 된 것 같아요"] }
+                ];
+                
+                const sentences = [
+                    { id: 1, parts: ["운영자는 사람들에게 ‘지금 하는 일이 ", " 하고 싶었던 일이에요’라고 물어봤어요."], answer: "원래", bank: ["원래", "계속", "당장", "아무리"], eng_parts: ["The operator asked people, 'Is the job you're doing now what you ", " wanted to do?'"], eng_answer: "originally", eng_hint: "(부사) 처음부터. (Adverb) Originally; from the beginning.", eng_explanation: "Correct. '원래' means 'originally'. The operator is asking about their original dream.", eng_wrongAnswerExplanations: { "계속": "'계속' means 'continuously'.", "당장": "'당장' means 'right now'.", "아무리": "'아무리' means 'no matter how'." } },
+                    { id: 2, parts: ["한 여자는 자신의 ", "을 잘 살리는 일을 하고 싶다고 말했어요."], answer: "특성", bank: ["특성", "꿈", "인생", "패션"], eng_parts: ["One woman said she wants to do a job that utilizes her ", " well."], eng_answer: "characteristics", eng_hint: "(명사) 특별한 성질. (Noun) A special characteristic or trait.", eng_explanation: "Correct. The participant wants a job that '특성을 잘 살리는' (makes good use of her characteristics).", eng_wrongAnswerExplanations: { "꿈": "'꿈' means 'dream'.", "인생": "'인생' means 'life'.", "패션": "'패션' means 'fashion'." } },
+                    { id: 3, parts: ["그녀는 ", " 실험하는 자신의 특성을 살리고 싶어 했어요."], answer: "도전하고", bank: ["도전하고", "연습하고", "여행하고", "꾸미고"], eng_parts: ["She wanted to utilize her characteristic of '", " and experimenting.'"], eng_answer: "challenging", eng_hint: "(동사) 어려운 일에 맞서다. (Verb) To challenge; to try new things.", eng_explanation: "Correct. The participant describes her characteristic as '도전하고 실험하는' (challenging and experimenting).", eng_wrongAnswerExplanations: { "연습하고": "'연습하고' means 'practicing'.", "여행하고": "'여행하고' means 'traveling'.", "꾸미고": "'꾸미고' means 'decorating'." } },
+                    { id: 4, parts: ["다른 여자는 한 가지 일을 ", " 하지 않는 '찍먹파'라고 말했어요."], answer: "꾸준히", bank: ["꾸준히", "열심히", "빨리", "오래"], eng_parts: ["Another woman said she is 'Team Dip' (jjikmeok-pa), who doesn't do one thing '", "'."], eng_answer: "consistently", eng_hint: "(부사) 끊이지 않고 계속. (Adverb) Steadily; consistently.", eng_explanation: "Correct. She says, '하나를 꾸준히 하지 않았던 것 같아요' (I don't think I did one thing consistently).", eng_wrongAnswerExplanations: { "열심히": "'열심히' means 'hard', but the point is consistency.", "빨리": "'빨리' means 'quickly'.", "오래": "'오래' means 'for a long time', which is similar but '꾸준히' is the exact word used." } },
+                    { id: 5, parts: ["그녀는 일을 ", " 바꾸는 것을 좋아해요."], answer: "계속", bank: ["계속", "가끔", "조금", "당장"], eng_parts: ["She likes to '", "' change her work/interests."], eng_answer: "continuously", eng_hint: "(부사) 끊이지 않고. (Adverb) Continuously.", eng_explanation: "Correct. As a 'Team Dip' person, she '계속' (continuously) changes what she is doing.", eng_wrongAnswerExplanations: { "가끔": "'가끔' means 'sometimes'.", "조금": "'조금' means 'a little'.", "당장": "'당장' means 'right now'." } },
+                    { id: 6, parts: ["또 다른 여자는 여행을 좋아해서 여행 상품을 만드는 일이 ", " 일이라고 말했어요."], answer: "꿈꿨던", bank: ["꿈꿨던", "시작했던", "좋아했던", "그만뒀던"], eng_parts: ["Another woman, who likes to travel, said that making travel products is the job she '", "'."], eng_answer: "dreamed of", eng_hint: "(동사) 꿈꾸다의 과거. (Verb) Past tense of 'to dream'.", eng_explanation: "Correct. '꿈꿨던' is the past tense modifier form of '꿈꾸다' (to dream). She is connecting her interest to a past dream.", eng_wrongAnswerExplanations: { "시작했던": "'시작했던' means 'had started'.", "좋아했던": "'좋아했던' means 'had liked'.", "그만뒀던": "'그만뒀던' means 'had quit'." } },
+                    { id: 7, parts: ["한 남자는 자신의 일을 통해 청소에 대한 사람들의 ", "을 바꾸고 있다고 생각해요."], answer: "인식", bank: ["인식", "꿈", "특성", "인생"], eng_parts: ["One man thinks he is changing people's '", "' of cleaning through his work."], eng_answer: "perception", eng_hint: "(명사) 무언가를 어떻게 생각하는지. (Noun) Perception; awareness.", eng_explanation: "Correct. He says he is changing the '인식' (perception) of cleaning.", eng_wrongAnswerExplanations: { "꿈": "'꿈' means 'dream'.", "특성": "'특성' means 'characteristic'.", "인생": "'인생' means 'life'." } },
+                    { id: 8, parts: ["왜냐하면 세상이 ", " 힘들어도 누군가는 청소를 해야 하기 때문이에요."], answer: "아무리", bank: ["아무리", "계속", "원래", "너무"], eng_parts: ["Because '", " hard the world is,' someone has to clean."], eng_answer: "no matter how", eng_hint: "(문법) '...-아도/어도'와 함께 쓰여 'no matter how...'를 의미해요. (Grammar) Used with '-아도/어도' to mean 'no matter how...'", eng_explanation: "Correct. '아무리 -아도/어도' is a grammar pattern meaning 'no matter how...'.", eng_wrongAnswerExplanations: { "계속": "'계속' means 'continuously'.", "원래": "'원래' means 'originally'.", "너무": "'너무' means 'too' (e.g., 너무 힘들어도)." } },
+                    { id: 9, parts: ["반면에, 어떤 여자는 ‘그냥 평소에 ", "을 하면서 인생을 즐기는 게 맞다’고 말했어요."], answer: "해 보고 싶은 것", bank: ["해 보고 싶은 것", "사 보고 싶은 것", "가 보고 싶은 곳", "만나 보고 싶은 사람"], eng_parts: ["On the other hand, one woman said, 'It's right to enjoy life while just doing ", ".'"], eng_answer: "what I want to try", eng_hint: "(표현) 평소에 하고 싶었던 일. (Expression) Things one usually wanted to try.", eng_explanation: "Correct. She says she wants to enjoy life '평소에 하고 싶던 거 하면서' (while doing things she usually wanted to try). '해 보고 싶은 것' is the best fit.", eng_wrongAnswerExplanations: { "사 보고 싶은 것": "'사 보고 싶은 것' means 'what I want to try buying'.", "가 보고 싶은 곳": "'가 보고 싶은 곳' means 'the place I want to try going'.", "만나 보고 싶은 사람": "'만나 보고 싶은 사람' means 'the person I want to try meeting'." } },
+                    { id: 10, parts: ["이처럼 사람마다 '", "' 싶은 미래의 모습은 모두 달라요."], answer: "살아가고", bank: ["살아가고", "도전하고", "실험하고", "시작하고"], eng_parts: ["Like this, everyone has a different vision of the future they want to '", ".'"], eng_answer: "live", eng_hint: "(동사) '살다'의 계속되는 느낌. (Verb) A continuous feeling of 'to live'.", eng_explanation: "Correct. '살아가고 싶은 미래' (the future one wants to live) refers to the way of life, matching the operator's question.", eng_wrongAnswerExplanations: { "도전하고": "'도전하고' means 'challenging'.", "실험하고": "'실험하고' means 'experimenting'.", "시작하고": "'시작하고' means 'starting'." } }
+                ];
+                
+                const discussionQuestions = [
+                    { num: 1, kor: "‘꿈’은 무엇일까요? 꿈은 '어렸을 때부터 계속 원했던 것'이어야 할까요?", eng: "What is a 'dream'? Does a dream have to be 'something you've wanted continuously since you were young'?", vocab: [ { term: "꿈", meaning_eng: "Dream" }, { term: "어렸을 때부터", meaning_eng: "Since one was young" }, { term: "계속 원했던 것", meaning_eng: "Something one has continuously wanted" } ] },
+                    { num: 2, kor: "여러분은 한 가지 일을 '꾸준히 하는' 편이에요, 아니면 여러 가지를 '찍먹'하는 '찍먹파'예요?", eng: "Are you the type to do one thing 'consistently', or are you 'Team Dip' ('jjikmeok-pa') who 'dips' into (tries) many things?", vocab: [ { term: "꾸준히 하다", meaning_eng: "To do consistently" }, { term: "-는 편이다", meaning_eng: "To be the type to..." }, { term: "찍먹하다", meaning_eng: "(Literal) To dip food into sauce; (Figurative) To dabble in something" }, { term: "찍먹파", meaning_eng: "Team Dip / Team Dabble" } ] },
+                    { num: 3, kor: "한 여자는 여행을 좋아해서 “여행 상품을 만들어 보고 싶다”고 말했어요. 여러분도 ‘좋아하는 것을’ 일로 만들고 싶어요?", eng: "A woman said she likes traveling so she \"wants to try making travel products.\" Do you also want to turn 'what you like' into a job?", vocab: [ { term: "여행 상품", meaning_eng: "Travel product" }, { term: "만들어 보고 싶다", meaning_eng: "To want to try making" }, { term: "좋아하는 것", meaning_eng: "What one likes" }, { term: "일로 만들다", meaning_eng: "To turn into a job" } ] },
+                    { num: 4, kor: "다른 여자는 '도전하고 실험하는 특성'을 '잘 살리고' 싶다고 말했어요. 여러분이 '잘 살리고' 싶은 '특성'은 뭐예요?", eng: "Another woman said she wants to 'make good use of' her 'characteristic of challenging and experimenting'. What 'characteristic' of yours do you want to 'make good use of'?", vocab: [ { term: "도전하고 실험하는 특성", meaning_eng: "Characteristic of challenging and experimenting" }, { term: "잘 살리다", meaning_eng: "To make good use of; to utilize well" }, { term: "특성", meaning_eng: "Characteristic; trait" } ] },
+                    { num: 5, kor: "한 남자는 청소 일을 하면서 “청소에 대한 사람들의 인식을 바꿔가고 싶다”고 말했어요. 여러분도 '사람들의 인식을 바꾸는 일'을 하고 싶어요?", eng: "A man who cleans said he \"wants to change people's perception of cleaning.\" Do you also want to do 'work that changes people's perceptions'?", vocab: [ { term: "-면서", meaning_eng: "used to mean “while …” or “as …,” showing that two actions happen at the same time" }, { term: "-에 대한", meaning_eng: "about, or regarding" }, { term: "인식을 바꿔가다", meaning_eng: "To (continuously) change the perception" }, { term: "인식을 바꾸는 일", meaning_eng: "Work that changes perception" } ] },
+                    { num: 6, kor: "‘꿈’은 ‘낭만적인 일’이라고 생각해요? 여러분이 생각하는 '낭만'은 뭐예요?", eng: "Do you think a 'dream' is a 'romantic job/thing'? What is 'romance/idealism' to you?", vocab: [ { term: "꿈", meaning_eng: "Dream" }, { term: "낭만적인 일", meaning_eng: "A romantic thing / job" }, { term: "낭만", meaning_eng: "idealistic and beautiful dreams or wishes; romantic ideals about life." } ] },
+                    { num: 7, kor: "어떤 사람들은 ‘거대한 꿈’을 가지고, 어떤 사람들은 ‘소소하게 하고 싶던 것’을 하면서 살아요. 여러분은 어떤 삶을 원해요?", eng: "Some people have 'huge dreams', and some people live while doing 'small things they've wanted to do'. What kind of life do you want?", vocab: [ { term: "거대한 꿈", meaning_eng: "A huge dream" }, { term: "꿈을 가지다", meaning_eng: "to have a dream" }, { term: "소소하게 하고 싶던 것", meaning_eng: "Small things one wanted to do" }, { term: "-을/를 하면서 살아요", meaning_eng: "“I live my life doing …”, “I go through life …ing”" }, { term: "어떤 삶", meaning_eng: "What kind of life" } ] },
+                    { num: 8, kor: "여러분은 지금 ‘원래 하고 싶었던 일(공부)’을 하고 있어요? 아니면 ‘다른 일(공부)’을 하고 있어요?", eng: "Are you doing the 'work (study) you originally wanted to do' right now? Or are you doing 'different work (study)'?", vocab: [ { term: "원래 하고 싶었던 일", meaning_eng: "The work one originally wanted to do" }, { term: "다른 일", meaning_eng: "Different work" } ] },
+                    { num: 9, kor: "미래에 여러분은 “이런 것들을 하면서 살아가고 싶다”고 생각하는 것들이 있어요? 뭐예요?", eng: "Are there things you think, \"I want to live my life doing these things\" in the future? What are they?", vocab: [ { term: "미래에", meaning_eng: "In the future" }, { term: "-을/를 하면서 살아가다", meaning_eng: "“to live one’s life while doing …”, “to go through life doing …”" }, { term: "-고 생각하는 것", meaning_eng: "“thinking that …”" } ] },
+                    { num: 10, kor: "만약에 여러분이 '지금 하는 일' 외에 다른 걸 당장 해 보고 싶다면, 무슨 일을 하고 싶어요?", eng: "If you wanted to try doing something else 'right now' besides 'what you do now', what would you want to do?", vocab: [ { term: "지금 하는 일 외에", meaning_eng: "Besides the work (you) do now" }, { term: "당장", meaning_eng: "Right now" }, { term: "해 보고 싶다면", meaning_eng: "If (you) want to try doing" } ] }
+                ];
+                
+                return { scriptContent, vocabAndGrammarList, sentences, discussionQuestions };
+            }, []);
+
+            const { vocabMap, highlightData } = useMemo(() => {
+                const vocabMap = new Map(vocabAndGrammarList.map(item => [item.term, item]));
+                const wordMap = new Map();
+                vocabAndGrammarList.forEach(item => wordMap.set(item.term, item));
+                const allWords = Array.from(wordMap.keys()).sort((a, b) => b.length - a.length);
+                const regexParts = [];
+                allWords.forEach(word => {
+                    const item = wordMap.get(word);
+                    if (item.variants) item.variants.forEach(v => regexParts.push(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+                    let processed = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
+                    if (word.endsWith('다')) {
+                        const parts = word.split(' ');
+                        const lastPart = parts[parts.length - 1];
+                        if (lastPart.endsWith('다')) {
+                            const stem = lastPart.slice(0, -1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const firstParts = parts.slice(0, -1).map(p => p.replace(/[.*+?^${}()|[\]\D]/g, '\\$&'));
+                            regexParts.push([...firstParts, `${stem}[가-힣]*`].join('\\s*'));
+                        } else { regexParts.push(`${processed.slice(0, -1)}[가-힣]*`); }
+                    } else { regexParts.push(processed); }
+                });
+                const regexString = [...new Set(regexParts)].sort((a,b) => b.length - a.length).join('|');
+                return { vocabMap, highlightData: { regex: new RegExp(`(${regexString})`, 'g'), wordMap, sortedWords: allWords }};
+            }, [vocabAndGrammarList]);
+
+            const tabs = useMemo(() => {
+                const baseTabs = [
+                    { id: 'script', name: <><span className="">대화 스크립트</span><span className="text-gray-400">(Transcript)</span></>, icon: <Video className="w-5 h-5"/>, content: <VideoMaterialsTab scriptContent={scriptContent} vocabAndGrammarList={vocabAndGrammarList} highlightData={highlightData} vocabMap={vocabMap} layoutMode={layoutMode} /> },
+                    { id: 'vocab', name: <><span className="">핵심 어휘</span><span className="text-gray-400">(Key Vocabulary)</span></>, icon: <List className="w-5 h-5"/>, content: (
+                        <div>
+                            <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><List className="w-8 h-8 text-green-600"/> 핵심 어휘 (Key Vocabulary)</h2>
+                            <div className="w-full overflow-y-auto" style={{maxHeight: `calc(100vh - 150px)`}}>
+                                <div className="border rounded-lg bg-white p-2 shadow-lg">
+                                    <div className="space-y-1">{vocabAndGrammarList.map(item => <VocabItem key={item.term} item={item} />)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    )},
+                    { id: 'quiz', name: <><span className="">내용 확인 퀴즈</span><span className="text-gray-400">(Comprehension Check-Up)</span></>, icon: <BookOpen className="w-5 h-5"/>, content: (
+                        <div>
+                            <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><BookOpen className="w-8 h-8 text-green-600"/> 내용 확인 퀴즈 (Comprehension Check-Up)</h2>
+                            <ComprehensionQuiz sentences={sentences} />
+                        </div>
+                    )},
+                    { id: 'discussion', name: <><span className="">생각해 보기</span><span className="text-gray-400">(Food For Thought)</span></>, icon: <MessageSquare className="w-5 h-5"/>, content: (
+                        <div>
+                            <h2 className="text-3xl font-extrabold text-gray-900 mb-8 flex items-center gap-3"><MessageSquare className="w-8 h-8 text-green-600"/> 생각해 보기 (Food For Thought)</h2>
+                            <DiscussionSection questions={discussionQuestions} />
+                        </div>
+                    ) }
+                ];
+                return baseTabs;
+            }, [layoutMode, scriptContent, vocabAndGrammarList, sentences, discussionQuestions, highlightData, vocabMap]);
+
+            return (
+                <div className="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
+                    <div className="mx-auto transition-all duration-300" style={{ maxWidth: containerWidth }}>
+                        <header className="text-center mb-12">
+                            <h1 className="font-black text-gray-900 mb-2 whitespace-nowrap" style={{ fontSize: 'clamp(1.875rem, 5vw, 3rem)' }}>여러분들의 원래 꿈은 무엇인가요?</h1>
+                            <p className="text-gray-500" style={{fontFamily: "'Nanum Gothic', sans-serif", fontSize: 'clamp(1rem, 3vw, 1.25rem)'}}>What were your original dreams?</p>
+                        </header>
+                        <Tabs tabs={tabs} />
+                    </div>
+                </div>
+            );
+        };
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
